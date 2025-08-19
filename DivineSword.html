@@ -1255,7 +1255,32 @@
     game.kills++;
     game.totalKills++;
     
-    // No more Divine Favor system - demons just die
+    // DEMONS EXPLODE WHEN KILLED - Enhanced death effects
+    const demonType = CFG.demons[z.type];
+    if (demonType) {
+      // Create explosion at demon's death location
+      explodeDemon(z, z.x, z.y);
+      
+      // Additional death particles for extra gore
+      for (let i = 0; i < 15; i++) {
+        const angle = (i / 15) * TAU;
+        const speed = 100 + RNG() * 80;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        const colors = ['#8b0000', '#ff0000', '#dc143c', '#660000'];
+        const color = colors[Math.floor(RNG() * colors.length)];
+        createParticle(z.x, z.y, vx, vy, 2.0, color, 4);
+      }
+      
+      // Create blood pools at death location
+      for (let i = 0; i < 4; i++) {
+        const offsetX = (RNG() - 0.5) * 50;
+        const offsetY = (RNG() - 0.5) * 50;
+        createBloodPool(z.x + offsetX, z.y + offsetY);
+      }
+    }
+    
+    // No more Divine Favor system - demons just die and explode
   }
   
   function chooseDemonType(totalKills) {
