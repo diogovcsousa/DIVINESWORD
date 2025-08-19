@@ -458,6 +458,11 @@
     frameTime: 0,
     memoryUsage: 0
   };
+  
+  // Emergency performance mode
+  let emergencyMode = false;
+  let frameSkip = 0;
+  let performanceMode = 'high'; // high, medium, low
 
   // Event listeners
   window.addEventListener('resize', onResize);
@@ -567,10 +572,35 @@
       performanceMetrics.zombieCount = zombies.length;
       performanceMetrics.frameTime = dt * 1000;
       
+      // EMERGENCY PERFORMANCE MODE - Automatic quality reduction
+      if (fps < 20) {
+        emergencyMode = true;
+        performanceMode = 'low';
+        console.warn('EMERGENCY MODE: FPS critically low, reducing quality');
+      } else if (fps < 30) {
+        emergencyMode = true;
+        performanceMode = 'medium';
+        console.warn('PERFORMANCE MODE: FPS low, reducing quality');
+      } else if (fps > 50) {
+        emergencyMode = false;
+        performanceMode = 'high';
+      }
+      
       // Log performance warnings
-      if (particles.length > 250) console.warn('High particle count:', particles.length);
-      if (bloodPools.length > 150) console.warn('High blood pool count:', bloodPools.length);
+      if (particles.length > 60) console.warn('High particle count:', particles.length);
+      if (bloodPools.length > 40) console.warn('High blood pool count:', bloodPools.length);
       if (fps < 30) console.warn('Low FPS detected:', fps);
+    }
+    
+    // EMERGENCY FRAME SKIPPING - Skip updates during low performance
+    if (emergencyMode && performanceMode === 'low') {
+      frameSkip++;
+      if (frameSkip % 2 === 0) { // Skip every other frame
+        requestAnimationFrame(loop);
+        return;
+      }
+    } else {
+      frameSkip = 0;
     }
 
     // Update input from gamepad
@@ -841,16 +871,16 @@
       }
 
       if (z.hp <= 0){
-        // Death particles
-        for (let i = 0; i < 6; i++) {
-          const angle = (i / 6) * TAU;
-          const speed = 80 + RNG() * 60;
-          const vx = Math.cos(angle) * speed;
-          const vy = Math.sin(angle) * speed;
-          const colors = ['#ff4444', '#8b0000', '#ff0000'];
-          const color = colors[Math.floor(RNG() * colors.length)];
-          createParticle(z.x, z.y, vx, vy, 0.5, color, 3);
-        }
+        // Death particles REMOVED for performance - handled in onDemonKilled
+        // for (let i = 0; i < 6; i++) {
+        //   const angle = (i / 6) * TAU;
+        //   const speed = 80 + RNG() * 60;
+        //   const vx = Math.cos(angle) * speed;
+        //   const vy = Math.sin(angle) * speed;
+        //   const colors = ['#ff4444', '#8b0000', '#ff0000'];
+        //   const color = colors[Math.floor(RNG() * colors.length)];
+        //   createParticle(z.x, z.y, vx, vy, 0.5, color, 3);
+        // }
         
         // Drop
         onDemonKilled(z);
@@ -868,23 +898,28 @@
     // Update blood pools
     updateBloodPools(dt);
     
-    // Ambient hell particles
-    if (RNG() < 0.1) {
-      const side = Math.floor(RNG() * 4);
-      let x, y;
-      if (side === 0) { x = -CFG.arena.w/2; y = (RNG()-0.5) * CFG.arena.h; }
-      if (side === 1) { x = CFG.arena.w/2; y = (RNG()-0.5) * CFG.arena.h; }
-      if (side === 2) { y = -CFG.arena.h/2; x = (RNG()-0.5) * CFG.arena.w; }
-      if (side === 3) { y = CFG.arena.h/2; x = (RNG()-0.5) * CFG.arena.w; }
-      
-      const vx = (game.pos.x - x) * 0.1;
-      const vy = (game.pos.y - y) * 0.1;
-      const colors = ['#ff4400', '#ff6600', '#ff8800'];
-      const color = colors[Math.floor(RNG() * colors.length)];
-      createParticle(x, y, vx, vy, 3.0, color, 2);
+    // EMERGENCY CLEANUP - Force cleanup during low performance
+    if (emergencyMode) {
+      if (performanceMode === 'low') {
+        // Force remove excess particles and blood pools
+        if (particles.length > 40) {
+          particles.splice(0, particles.length - 40);
+          console.warn('EMERGENCY: Forced particle cleanup');
+        }
+        if (bloodPools.length > 25) {
+          bloodPools.splice(0, bloodPools.length - 25);
+          console.warn('EMERGENCY: Forced blood pool cleanup');
+        }
+      } else if (performanceMode === 'medium') {
+        // Moderate cleanup
+        if (particles.length > 60) {
+          particles.splice(0, particles.length - 60);
+        }
+        if (bloodPools.length > 35) {
+          bloodPools.splice(0, bloodPools.length - 35);
+        }
+      }
     }
-
-    // Drops removed - no more collectibles
 
     // Camera follow - LOCKED on Michael
     cam.x = game.pos.x; // Direct lock, no lerp
@@ -1177,47 +1212,47 @@
     const explosionRadius = demonType.explosionRadius;
     const explosionDamage = demonType.explosionDamage;
     
-    // Stage 1: Flash
-    for (let i = 0; i < 15; i++) { // Reduced from 25
-      const angle = (i / 15) * TAU;
-      const speed = 400 + RNG() * 300;
+    // Stage 1: Flash - MINIMAL for performance
+    for (let i = 0; i < 8; i++) { // Reduced from 15
+      const angle = (i / 8) * TAU;
+      const speed = 300 + RNG() * 200;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
-      createParticle(x, y, vx, vy, 0.4, '#ffffff', 8);
+      createParticle(x, y, vx, vy, 0.3, '#ffffff', 6);
     }
     
-    // Stage 2: Shockwave
-    for (let i = 0; i < 25; i++) { // Reduced from 40
-      const angle = (i / 25) * TAU;
-      const speed = 200 + RNG() * 150;
-      const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed;
-      const colors = ['#ff4400', '#ff6600', '#ff8800', '#ff2200'];
-      const color = colors[Math.floor(RNG() * colors.length)];
-      createParticle(x, y, vx, vy, 1.0, color, 6);
-    }
-    
-    // Stage 3: Blood explosion - Enhanced for hyper-realism
-    for (let i = 0; i < 20; i++) { // Reduced from 35
-      const angle = (i / 20) * TAU;
-      const speed = 120 + RNG() * 100;
-      const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed;
-      const colors = ['#8b0000', '#ff0000', '#dc143c', '#660000'];
-      const color = colors[Math.floor(RNG() * colors.length)];
-      createParticle(x, y, vx, vy, 2.0, color, 4);
-    }
-    
-    // Stage 4: Gore particles - New scary effect
-    for (let i = 0; i < 12; i++) { // Reduced from 20
+    // Stage 2: Shockwave - MINIMAL for performance
+    for (let i = 0; i < 12; i++) { // Reduced from 25
       const angle = (i / 12) * TAU;
-      const speed = 80 + RNG() * 60;
+      const speed = 150 + RNG() * 100;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
-      const colors = ['#330000', '#220000', '#110000'];
+      const colors = ['#ff4400', '#ff6600'];
       const color = colors[Math.floor(RNG() * colors.length)];
-      createParticle(x, y, vx, vy, 3.0, color, 5);
+      createParticle(x, y, vx, vy, 0.8, color, 4);
     }
+    
+    // Stage 3: Blood explosion - MINIMAL for performance
+    for (let i = 0; i < 10; i++) { // Reduced from 20
+      const angle = (i / 10) * TAU;
+      const speed = 100 + RNG() * 60;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      const colors = ['#8b0000', '#ff0000'];
+      const color = colors[Math.floor(RNG() * colors.length)];
+      createParticle(x, y, vx, vy, 1.5, color, 3);
+    }
+    
+    // Stage 4: Gore particles - REMOVED for performance
+    // for (let i = 0; i < 12; i++) {
+    //   const angle = (i / 12) * TAU;
+    //   const speed = 80 + RNG() * 60;
+    //   const vx = Math.cos(angle) * speed;
+    //   const vy = Math.sin(angle) * speed;
+    //   const colors = ['#330000', '#220000', '#110000'];
+    //   const color = colors[Math.floor(RNG() * colors.length)];
+    //   createParticle(x, y, vx, vy, 3.0, color, 5);
+    // }
     
     // Create enhanced blood pools on the ground - More realistic
     for (let i = 0; i < 5; i++) {
@@ -1646,8 +1681,8 @@
 
   // Particle system
   function createParticle(x, y, vx, vy, life, color, size) {
-    // Particle culling - limit total particles for performance
-    if (particles.length >= 200) return; // Reduced from 300 for performance
+    // EMERGENCY PARTICLE LIMIT - Drastically reduced for performance
+    if (particles.length >= 80) return; // Reduced from 200 to 80
     
     particles.push({
       x, y, vx, vy, life, lifeMax: life, color, size
@@ -1701,15 +1736,15 @@
   }
 
   function createBloodPool(x, y) {
-    // Blood pool limits for performance - increased for more blood
-    if (bloodPools.length >= 150) { // Reduced from 200 for performance
+    // EMERGENCY BLOOD POOL LIMIT - Drastically reduced for performance
+    if (bloodPools.length >= 50) { // Reduced from 150 to 50
       // Remove oldest blood pools when limit reached
-      bloodPools.splice(0, 10); // Remove 10 oldest pools
+      bloodPools.splice(0, 20); // Remove 20 oldest pools
     }
     
     bloodPools.push({
       x, y, 
-      size: 20 + RNG() * 25, // Larger, more varied blood pools
+      size: 15 + RNG() * 15, // Reduced size for performance
       life: 999999, // Permanent blood - never fades
       lifeMax: 999999,
       type: RNG() < 0.3 ? 'splatter' : 'pool', // Different blood types
@@ -1733,55 +1768,30 @@
   }
 
   function renderBloodPools() {
-    const maxRenderDistance = 800; // Only render blood pools within 800 units
+    const maxRenderDistance = 600; // Reduced from 800 for performance
     
     for (const pool of bloodPools) {
       // Calculate distance to player for culling
       const distToPlayer = Math.hypot(pool.x - game.pos.x, pool.y - game.pos.y);
       if (distToPlayer > maxRenderDistance) continue; // Skip far blood pools
       
-      const alpha = 0.8; // Fixed alpha for permanent blood
+      const alpha = 0.6; // Reduced alpha for performance
       ctx.save();
       ctx.translate(pool.x, pool.y);
       ctx.globalAlpha = alpha * pool.intensity;
       
-      // Enhanced blood rendering with 3D effects
+      // SIMPLIFIED blood rendering for performance
       if (pool.type === 'splatter') {
-        // Blood splatter effect
+        // Simple blood splatter
         ctx.fillStyle = '#660000';
         ctx.beginPath();
         ctx.arc(0, 0, pool.size * 0.8, 0, TAU);
         ctx.fill();
-        
-        // Inner darker core
-        ctx.fillStyle = '#440000';
-        ctx.beginPath();
-        ctx.arc(0, 0, pool.size * 0.5, 0, TAU);
-        ctx.fill();
-        
-        // Blood edge highlights
-        ctx.strokeStyle = '#880000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, pool.size, 0, TAU);
-        ctx.stroke();
       } else {
-        // Blood pool effect
+        // Simple blood pool
         ctx.fillStyle = '#8b0000';
         ctx.beginPath();
         ctx.arc(0, 0, pool.size, 0, TAU);
-        ctx.fill();
-        
-        // 3D depth effect
-        ctx.fillStyle = '#660000';
-        ctx.beginPath();
-        ctx.arc(0, 0, pool.size * 0.7, 0, TAU);
-        ctx.fill();
-        
-        // Blood shine effect
-        ctx.fillStyle = '#aa0000';
-        ctx.beginPath();
-        ctx.arc(0, 0, pool.size * 0.3, 0, TAU);
         ctx.fill();
       }
       
