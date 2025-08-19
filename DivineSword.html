@@ -394,9 +394,9 @@
       upgradeMultiplier: 1.0, // Damage multiplier from upgrades
     },
     demons: {
-      imp: { hp:100, spd:120, rad:22, favor:4, explodeOnContact: true, explosionDamage: 27, explosionRadius: 60 },
-      hellhound: { hp:80, spd:200, rad:20, favor:5, explodeOnContact: true, explosionDamage: 40, explosionRadius: 80 },
-      fallen:  { hp:300, spd:90,  rad:30, favor:12, explodeOnContact: false, explosionDamage: 0, explosionRadius: 0 },
+      imp: { hp:100, spd:120, rad:22, favor:4, explodeOnContact: true, explosionDamage: 35, explosionRadius: 80 },
+      hellhound: { hp:80, spd:200, rad:20, favor:5, explodeOnContact: true, explosionDamage: 50, explosionRadius: 100 },
+      fallen:  { hp:300, spd:90,  rad:30, favor:12, explodeOnContact: true, explosionDamage: 80, explosionRadius: 120 },
       knockback: 80,
     },
     waves: { spawnMaxRate:4, baseCount:8, curve:1.25, addPerWave:3, hpScale:0.06 },
@@ -1146,40 +1146,51 @@
     const explosionDamage = demonType.explosionDamage;
     
     // Stage 1: Flash
-    for (let i = 0; i < 20; i++) {
-      const angle = (i / 20) * TAU;
-      const speed = 300 + RNG() * 200;
+    for (let i = 0; i < 25; i++) {
+      const angle = (i / 25) * TAU;
+      const speed = 400 + RNG() * 300;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
-      createParticle(x, y, vx, vy, 0.3, '#ffffff', 6);
+      createParticle(x, y, vx, vy, 0.4, '#ffffff', 8);
     }
     
     // Stage 2: Shockwave
-    for (let i = 0; i < 30; i++) {
-      const angle = (i / 30) * TAU;
-      const speed = 150 + RNG() * 100;
+    for (let i = 0; i < 40; i++) {
+      const angle = (i / 40) * TAU;
+      const speed = 200 + RNG() * 150;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
-      const colors = ['#ff4400', '#ff6600', '#ff8800'];
+      const colors = ['#ff4400', '#ff6600', '#ff8800', '#ff2200'];
       const color = colors[Math.floor(RNG() * colors.length)];
-      createParticle(x, y, vx, vy, 0.8, color, 4);
+      createParticle(x, y, vx, vy, 1.0, color, 6);
     }
     
-    // Stage 3: Blood explosion
-    for (let i = 0; i < 25; i++) {
-      const angle = (i / 25) * TAU;
-      const speed = 100 + RNG() * 80;
+    // Stage 3: Blood explosion - Enhanced for hyper-realism
+    for (let i = 0; i < 35; i++) {
+      const angle = (i / 35) * TAU;
+      const speed = 120 + RNG() * 100;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
-      const colors = ['#8b0000', '#ff0000', '#dc143c'];
+      const colors = ['#8b0000', '#ff0000', '#dc143c', '#660000', '#440000'];
       const color = colors[Math.floor(RNG() * colors.length)];
-      createParticle(x, y, vx, vy, 1.5, color, 3);
+      createParticle(x, y, vx, vy, 2.0, color, 4);
     }
     
-    // Create blood pools on the ground
-    for (let i = 0; i < 3; i++) {
-      const offsetX = (RNG() - 0.5) * 40;
-      const offsetY = (RNG() - 0.5) * 40;
+    // Stage 4: Gore particles - New scary effect
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * TAU;
+      const speed = 80 + RNG() * 60;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      const colors = ['#330000', '#220000', '#110000'];
+      const color = colors[Math.floor(RNG() * colors.length)];
+      createParticle(x, y, vx, vy, 3.0, color, 5);
+    }
+    
+    // Create enhanced blood pools on the ground - More realistic
+    for (let i = 0; i < 5; i++) {
+      const offsetX = (RNG() - 0.5) * 60;
+      const offsetY = (RNG() - 0.5) * 60;
       createBloodPool(x + offsetX, y + offsetY);
     }
     
@@ -1570,7 +1581,7 @@
   // Particle system
   function createParticle(x, y, vx, vy, life, color, size) {
     // Particle culling - limit total particles for performance
-    if (particles.length >= 200) return;
+    if (particles.length >= 300) return; // Increased from 200 for enhanced effects
     
     particles.push({
       x, y, vx, vy, life, lifeMax: life, color, size
@@ -1614,35 +1625,80 @@
   }
 
   function createBloodPool(x, y) {
-    // Blood pool limits for performance
-    if (bloodPools.length >= 50) return;
+    // Blood pool limits for performance - increased for more blood
+    if (bloodPools.length >= 200) return;
     
     bloodPools.push({
-      x, y, size: 15 + RNG() * 10, life: 30, lifeMax: 30
+      x, y, 
+      size: 20 + RNG() * 25, // Larger, more varied blood pools
+      life: 999999, // Permanent blood - never fades
+      lifeMax: 999999,
+      type: RNG() < 0.3 ? 'splatter' : 'pool', // Different blood types
+      intensity: 0.7 + RNG() * 0.3 // Varying blood intensity
     });
   }
 
   function updateBloodPools(dt) {
-    for (let i = bloodPools.length - 1; i >= 0; i--) {
-      const pool = bloodPools[i];
-      pool.life -= dt * 0.1; // Blood pools fade slowly
+    // Blood pools are now permanent - no fading
+    // Only update for visual effects, not removal
+    for (const pool of bloodPools) {
+      // Blood pools stay forever - no life reduction
+      // pool.life -= dt * 0.1; // REMOVED - Blood is permanent
       
-      if (pool.life <= 0) {
-        bloodPools.splice(i, 1);
-      }
+      // No removal - blood stays forever
+      // if (pool.life <= 0) {
+      //   bloodPools.splice(i, 1);
+      // }
     }
   }
 
   function renderBloodPools() {
     for (const pool of bloodPools) {
-      const alpha = pool.life / pool.lifeMax;
+      const alpha = 0.8; // Fixed alpha for permanent blood
       ctx.save();
       ctx.translate(pool.x, pool.y);
-      ctx.globalAlpha = alpha * 0.6;
-      ctx.fillStyle = '#8b0000';
-      ctx.beginPath();
-      ctx.arc(0, 0, pool.size, 0, TAU);
-      ctx.fill();
+      ctx.globalAlpha = alpha * pool.intensity;
+      
+      // Enhanced blood rendering with 3D effects
+      if (pool.type === 'splatter') {
+        // Blood splatter effect
+        ctx.fillStyle = '#660000';
+        ctx.beginPath();
+        ctx.arc(0, 0, pool.size * 0.8, 0, TAU);
+        ctx.fill();
+        
+        // Inner darker core
+        ctx.fillStyle = '#440000';
+        ctx.beginPath();
+        ctx.arc(0, 0, pool.size * 0.5, 0, TAU);
+        ctx.fill();
+        
+        // Blood edge highlights
+        ctx.strokeStyle = '#880000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, pool.size, 0, TAU);
+        ctx.stroke();
+      } else {
+        // Blood pool effect
+        ctx.fillStyle = '#8b0000';
+        ctx.beginPath();
+        ctx.arc(0, 0, pool.size, 0, TAU);
+        ctx.fill();
+        
+        // 3D depth effect
+        ctx.fillStyle = '#660000';
+        ctx.beginPath();
+        ctx.arc(0, 0, pool.size * 0.7, 0, TAU);
+        ctx.fill();
+        
+        // Blood shine effect
+        ctx.fillStyle = '#aa0000';
+        ctx.beginPath();
+        ctx.arc(0, 0, pool.size * 0.3, 0, TAU);
+        ctx.fill();
+      }
+      
       ctx.restore();
     }
   }
