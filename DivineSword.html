@@ -307,6 +307,9 @@
     <div class="badge row">
       <span class="muted">Kills</span>&nbsp;<b class="zleft" id="hudZLeft">0</b>
     </div>
+    <div class="badge row" id="fpsCounter">
+      <span class="muted">FPS</span>&nbsp;<b class="zleft" id="fpsValue">0</b>
+    </div>
   </div>
 
   <!-- Independent Circular Meters -->
@@ -348,6 +351,7 @@
     zleft: document.getElementById('hudZLeft'),
     hpBar: document.getElementById('hpBar'),
     furyBar: document.getElementById('furyBar'), // Add fury bar
+    fpsValue: document.getElementById('fpsValue'), // FPS counter
   };
   
 
@@ -443,6 +447,18 @@
   // Camera
   const cam = { x:0, y:0, shake:0, zoom:1 };
 
+  // Performance monitoring
+  let fps = 0;
+  let frameCount = 0;
+  let lastFpsTime = 0;
+  let performanceMetrics = {
+    particleCount: 0,
+    bloodPoolCount: 0,
+    zombieCount: 0,
+    frameTime: 0,
+    memoryUsage: 0
+  };
+
   // Event listeners
   window.addEventListener('resize', onResize);
   onResize();
@@ -537,9 +553,25 @@
     const dt = Math.min(0.033, (t - (tPrev||t)) / 1000); // clamp dt
     tPrev = t;
 
-    // FPS calc
-
-
+    // FPS calculation and performance monitoring
+    frameCount++;
+    const currentTime = performance.now();
+    if (currentTime - lastFpsTime >= 1000) { // Update FPS every second
+      fps = frameCount;
+      frameCount = 0;
+      lastFpsTime = currentTime;
+      
+      // Update performance metrics
+      performanceMetrics.particleCount = particles.length;
+      performanceMetrics.bloodPoolCount = bloodPools.length;
+      performanceMetrics.zombieCount = zombies.length;
+      performanceMetrics.frameTime = dt * 1000;
+      
+      // Log performance warnings
+      if (particles.length > 250) console.warn('High particle count:', particles.length);
+      if (bloodPools.length > 150) console.warn('High blood pool count:', bloodPools.length);
+      if (fps < 30) console.warn('Low FPS detected:', fps);
+    }
 
     // Update input from gamepad
     if (!isPaused) readGamepad();
@@ -1146,8 +1178,8 @@
     const explosionDamage = demonType.explosionDamage;
     
     // Stage 1: Flash
-    for (let i = 0; i < 25; i++) {
-      const angle = (i / 25) * TAU;
+    for (let i = 0; i < 15; i++) { // Reduced from 25
+      const angle = (i / 15) * TAU;
       const speed = 400 + RNG() * 300;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
@@ -1155,8 +1187,8 @@
     }
     
     // Stage 2: Shockwave
-    for (let i = 0; i < 40; i++) {
-      const angle = (i / 40) * TAU;
+    for (let i = 0; i < 25; i++) { // Reduced from 40
+      const angle = (i / 25) * TAU;
       const speed = 200 + RNG() * 150;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
@@ -1166,19 +1198,19 @@
     }
     
     // Stage 3: Blood explosion - Enhanced for hyper-realism
-    for (let i = 0; i < 35; i++) {
-      const angle = (i / 35) * TAU;
+    for (let i = 0; i < 20; i++) { // Reduced from 35
+      const angle = (i / 20) * TAU;
       const speed = 120 + RNG() * 100;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
-      const colors = ['#8b0000', '#ff0000', '#dc143c', '#660000', '#440000'];
+      const colors = ['#8b0000', '#ff0000', '#dc143c', '#660000'];
       const color = colors[Math.floor(RNG() * colors.length)];
       createParticle(x, y, vx, vy, 2.0, color, 4);
     }
     
     // Stage 4: Gore particles - New scary effect
-    for (let i = 0; i < 20; i++) {
-      const angle = (i / 20) * TAU;
+    for (let i = 0; i < 12; i++) { // Reduced from 20
+      const angle = (i / 12) * TAU;
       const speed = 80 + RNG() * 60;
       const vx = Math.cos(angle) * speed;
       const vy = Math.sin(angle) * speed;
@@ -1393,6 +1425,10 @@
 
     // Demons
     for (const z of zombies){
+      // Cull zombies that are too far from player for performance
+      const distToPlayer = Math.hypot(z.x - game.pos.x, z.y - game.pos.y);
+      if (distToPlayer > 800) continue; // Skip far zombies
+      
       ctx.save();
       ctx.translate(z.x, z.y);
       
@@ -1577,6 +1613,11 @@
     } else {
       furyMeter.classList.remove('full');
     }
+
+    // Update FPS
+    fps = Math.round(1000 / (performance.now() - lastFpsTime));
+    hud.fpsValue.textContent = fps;
+    lastFpsTime = performance.now();
   }
 
   // Helpers
@@ -1606,7 +1647,7 @@
   // Particle system
   function createParticle(x, y, vx, vy, life, color, size) {
     // Particle culling - limit total particles for performance
-    if (particles.length >= 300) return; // Increased from 200 for enhanced effects
+    if (particles.length >= 200) return; // Reduced from 300 for performance
     
     particles.push({
       x, y, vx, vy, life, lifeMax: life, color, size
@@ -1621,11 +1662,15 @@
           particles.splice(i, 1);
           continue;
         }
+        
+        // Update particle position
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.life -= dt;
         
-        if (p.life <= 0) {
+        // Cull particles that are off-screen or dead
+        const distToPlayer = Math.hypot(p.x - game.pos.x, p.y - game.pos.y);
+        if (p.life <= 0 || distToPlayer > 1000) { // Remove dead or far particles
           particles.splice(i, 1);
         }
       }
@@ -1636,7 +1681,13 @@
   }
 
   function renderParticles() {
+    const maxRenderDistance = 600; // Only render particles within 600 units
+    
     for (const p of particles) {
+      // Cull particles that are too far from player
+      const distToPlayer = Math.hypot(p.x - game.pos.x, p.y - game.pos.y);
+      if (distToPlayer > maxRenderDistance) continue;
+      
       const alpha = p.life / p.lifeMax;
       ctx.save();
       ctx.translate(p.x, p.y);
@@ -1651,7 +1702,10 @@
 
   function createBloodPool(x, y) {
     // Blood pool limits for performance - increased for more blood
-    if (bloodPools.length >= 200) return;
+    if (bloodPools.length >= 150) { // Reduced from 200 for performance
+      // Remove oldest blood pools when limit reached
+      bloodPools.splice(0, 10); // Remove 10 oldest pools
+    }
     
     bloodPools.push({
       x, y, 
@@ -1659,7 +1713,8 @@
       life: 999999, // Permanent blood - never fades
       lifeMax: 999999,
       type: RNG() < 0.3 ? 'splatter' : 'pool', // Different blood types
-      intensity: 0.7 + RNG() * 0.3 // Varying blood intensity
+      intensity: 0.7 + RNG() * 0.3, // Varying blood intensity
+      distance: 0 // Will be calculated for culling
     });
   }
 
@@ -1678,7 +1733,13 @@
   }
 
   function renderBloodPools() {
+    const maxRenderDistance = 800; // Only render blood pools within 800 units
+    
     for (const pool of bloodPools) {
+      // Calculate distance to player for culling
+      const distToPlayer = Math.hypot(pool.x - game.pos.x, pool.y - game.pos.y);
+      if (distToPlayer > maxRenderDistance) continue; // Skip far blood pools
+      
       const alpha = 0.8; // Fixed alpha for permanent blood
       ctx.save();
       ctx.translate(pool.x, pool.y);
