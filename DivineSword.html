@@ -889,7 +889,7 @@
     for (const z of zombies){
       const dist = Math.hypot(z.x - game.pos.x, z.y - game.pos.y);
       if (dist <= sweepRange){
-        const baseDamage = Math.round(5 + (game.upgradeLevel * 3)); // Tripled damage: ~5-45
+        const baseDamage = Math.round((5 + (game.upgradeLevel * 3)) * 5); // 5x damage: ~25-225
         const totalDamage = baseDamage; // No Divine Favor bonus
         
         z.hp -= totalDamage;
