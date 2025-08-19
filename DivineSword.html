@@ -587,8 +587,8 @@
       }
       
       // Log performance warnings
-      if (particles.length > 60) console.warn('High particle count:', particles.length);
-      if (bloodPools.length > 40) console.warn('High blood pool count:', bloodPools.length);
+      if (particles.length > 30) console.warn('High particle count:', particles.length); // Reduced from 60 to 30
+      if (bloodPools.length > 20) console.warn('High blood pool count:', bloodPools.length); // Reduced from 40 to 20
       if (fps < 30) console.warn('Low FPS detected:', fps);
     }
     
@@ -902,21 +902,21 @@
     if (emergencyMode) {
       if (performanceMode === 'low') {
         // Force remove excess particles and blood pools
-        if (particles.length > 40) {
-          particles.splice(0, particles.length - 40);
+        if (particles.length > 20) { // Reduced from 40 to 20
+          particles.splice(0, particles.length - 20);
           console.warn('EMERGENCY: Forced particle cleanup');
         }
-        if (bloodPools.length > 25) {
-          bloodPools.splice(0, bloodPools.length - 25);
+        if (bloodPools.length > 15) { // Reduced from 25 to 15
+          bloodPools.splice(0, bloodPools.length - 15);
           console.warn('EMERGENCY: Forced blood pool cleanup');
         }
       } else if (performanceMode === 'medium') {
         // Moderate cleanup
-        if (particles.length > 60) {
-          particles.splice(0, particles.length - 60);
+        if (particles.length > 30) { // Reduced from 60 to 30
+          particles.splice(0, particles.length - 30);
         }
-        if (bloodPools.length > 35) {
-          bloodPools.splice(0, bloodPools.length - 35);
+        if (bloodPools.length > 20) { // Reduced from 35 to 20
+          bloodPools.splice(0, bloodPools.length - 20);
         }
       }
     }
@@ -1322,32 +1322,30 @@
     game.kills++;
     game.totalKills++;
     
-    // DEMONS EXPLODE WHEN KILLED - Enhanced death effects
+    // CLEAN DEATH - Minimal effects for performance
     const demonType = CFG.demons[z.type];
     if (demonType) {
-      // Create explosion at demon's death location
-      explodeDemon(z, z.x, z.y);
+      // Create minimal explosion (reduced from 30+ particles to 5)
+      createMinimalExplosion(z.x, z.y);
       
-      // Additional death particles for extra gore
-      for (let i = 0; i < 15; i++) {
-        const angle = (i / 15) * TAU;
-        const speed = 100 + RNG() * 80;
-        const vx = Math.cos(angle) * speed;
-        const vy = Math.sin(angle) * speed;
-        const colors = ['#8b0000', '#ff0000', '#dc143c', '#660000'];
-        const color = colors[Math.floor(RNG() * colors.length)];
-        createParticle(z.x, z.y, vx, vy, 2.0, color, 4);
-      }
-      
-      // Create blood pools at death location
-      for (let i = 0; i < 4; i++) {
-        const offsetX = (RNG() - 0.5) * 50;
-        const offsetY = (RNG() - 0.5) * 50;
-        createBloodPool(z.x + offsetX, z.y + offsetY);
-      }
+      // Create only 1 blood pool for performance
+      createBloodPool(z.x, z.y);
     }
     
-    // No more Divine Favor system - demons just die and explode
+    // No more Divine Favor system - demons just die cleanly
+  }
+
+  function createMinimalExplosion(x, y) {
+    // PERFORMANCE OPTIMIZED: Only 5 particles instead of 30+
+    for (let i = 0; i < 5; i++) {
+      const angle = (i / 5) * TAU;
+      const speed = 80 + RNG() * 60;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      const colors = ['#ff0000', '#8b0000'];
+      const color = colors[Math.floor(RNG() * colors.length)];
+      createParticle(x, y, vx, vy, 1.0, color, 3);
+    }
   }
   
   function chooseDemonType(totalKills) {
@@ -1572,25 +1570,9 @@
   }
 
   function drawArena(){
-    // PITCH BLACK ARENA - No more red elements
-    const halfW = CFG.arena.w/2, halfH = CFG.arena.h/2;
-    
-    // Pure black arena (already filled by main background)
-    // All arena elements removed for pitch black background
-
-    // Grid removed for pitch black background
-    // Grid stroke style removed
-    // Grid line width removed
-    // Grid step removed
-    ctx.beginPath();
-    for (let x = -halfW; x<=halfW; x+=step){ ctx.moveTo(x, -halfH); ctx.lineTo(x, halfH); }
-    for (let y = -halfH; y<=halfH; y+=step){ ctx.moveTo(-halfW, y); ctx.lineTo(halfW, y); }
-    ctx.stroke();
-
-    // Platforms removed for pitch black background
-    // Platform drawing code removed
-
-    // Border and fire glow effects removed for pitch black background
+    // COMPLETELY EMPTY ARENA - Pure pitch black background
+    // All drawing code removed - no lines, no grids, no elements
+    // Function does absolutely nothing - just pure black void
   }
 
   function updateHUD(){
@@ -1656,7 +1638,7 @@
   // Particle system
   function createParticle(x, y, vx, vy, life, color, size) {
     // EMERGENCY PARTICLE LIMIT - Drastically reduced for performance
-    if (particles.length >= 80) return; // Reduced from 200 to 80
+    if (particles.length >= 40) return; // Reduced from 80 to 40 for performance
     
     particles.push({
       x, y, vx, vy, life, lifeMax: life, color, size
@@ -1711,9 +1693,9 @@
 
   function createBloodPool(x, y) {
     // EMERGENCY BLOOD POOL LIMIT - Drastically reduced for performance
-    if (bloodPools.length >= 50) { // Reduced from 150 to 50
+    if (bloodPools.length >= 25) { // Reduced from 50 to 25 for performance
       // Remove oldest blood pools when limit reached
-      bloodPools.splice(0, 20); // Remove 20 oldest pools
+      bloodPools.splice(0, 10); // Remove 10 oldest pools
     }
     
     bloodPools.push({
