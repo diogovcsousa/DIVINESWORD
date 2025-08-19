@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Zombie Survival — Offline MVP</title>
+<style>
+  :root {
+    --bg:#0b0d10; --fg:#e8eef2; --muted:#9aa6b2; --accent:#36c; --danger:#e34; --ok:#3c8;
+    --hud-bg:rgba(0,0,0,0.45); --card:rgba(15,18,22,0.9);
+  }
+  html,body { height:100%; margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,Segoe UI,Roboto,Arial; }
+  #wrap { position:relative; width:100vw; height:100vh; overflow:hidden; }
+  canvas { display:block; width:100%; height:100%; background:radial-gradient(1200px 800px at 50% 50%, #12171c, #0b0d10 60%); }
+  /* HUD */
+  .hud { position:absolute; left:12px; top:12px; display:flex; gap:12px; flex-wrap:wrap; user-select:none; }
+  .badge { background:var(--hud-bg); padding:8px 10px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+  .row { display:flex; gap:8px; align-items:center; }
+  .bar { width:180px; height:10px; background:#222a31; border-radius:8px; overflow:hidden; }
+  .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--ok),#6c9); }
+  .ammo i { background:linear-gradient(90deg,#4af,#26a); }
+  .scrap { color:#ffd26e; }
+  .wave { color:#9ad1ff; }
+  .zleft { color:#ff8aa0; }
+  .muted { color:var(--muted); }
+  /* Overlays */
+  .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .panel { background:var(--card); border:1px solid #1d232a; padding:22px 26px; border-radius:14px; width:min(560px,90vw); box-shadow:0 12px 40px rgba(0,0,0,.45); }
+  h1 { margin:0 0 10px; font-size:28px; font-weight:700; letter-spacing:.3px; }
+  h2 { margin:14px 0 6px; font-size:18px; font-weight:700; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+  kbd { background:#11161b; border:1px solid #212a33; border-bottom-color:#1a2229; padding:2px 6px; border-radius:6px; font-size:12px; }
+  .btn { display:inline-block; padding:10px 14px; border-radius:10px; background:#1a2330; border:1px solid #253042; cursor:pointer; text-align:center; }
+  .btn.primary { background:#1e2f4a; border-color:#2f4771; }
+  .center { text-align:center; }
+  .shoprow { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #253042; }
+  .shoprow:last-child { border:0; }
+  .dim { opacity:.7; }
+  .foot { margin-top:10px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+
+  <!-- HUD -->
+  <div class="hud" id="hud" hidden>
+    <div class="badge row">
+      <span class="muted">Wave</span>&nbsp;<b class="wave" id="hudWave">1</b>
+    </div>
+    <div class="badge row">
+      <span class="muted">Zombies</span>&nbsp;<b class="zleft" id="hudZLeft">0</b>
+    </div>
+    <div class="badge">
+      <div class="row"><span class="muted">Health</span></div>
+      <div class="bar"><i id="hpBar" style="width:100%"></i></div>
+    </div>
+    <div class="badge ammo">
+      <div class="row"><span class="muted">Ammo</span></div>
+      <div class="bar"><i id="ammoBar" style="width:100%"></i></div>
+      <div class="muted" id="ammoText">30 / 90</div>
+    </div>
+    <div class="badge">
+      <div class="row"><span class="muted">Medkits</span>&nbsp;<b id="medkits">0</b></div>
+    </div>
+    <div class="badge">
+      <div class="row"><span class="muted">Scrap</span>&nbsp;<b class="scrap" id="scrap">0</b></div>
+    </div>
+    <div class="badge dim" id="perf">0 fps</div>
+  </div>
+
+  <!-- Start Panel - REMOVED for pure gameplay -->
+
+  <!-- Shop Panel - REMOVED for pure gameplay -->
+
+  <!-- Game Over Panel - REMOVED for seamless gameplay -->
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  // UI elements
+  const hud = {
+    root: document.getElementById('hud'),
+    wave: document.getElementById('hudWave'),
+    zleft: document.getElementById('hudZLeft'),
+    hpBar: document.getElementById('hpBar'),
+    ammoBar: document.getElementById('ammoBar'),
+    ammoText: document.getElementById('ammoText'),
+    medkits: document.getElementById('medkits'),
+    scrap: document.getElementById('scrap'),
+    perf: document.getElementById('perf'),
+  };
+  // All overlays removed for pure gameplay
+  
+  // No overlay buttons needed for pure gameplay
+
+  // Globals
+  let W=0,H=0, DPR=1, tPrev=0, accTime=0, fps=0, frames=0, fpsTime=0;
+
+  const RNG = mulberry32(Date.now() % 2147483647);
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296}}
+  const TAU = Math.PI * 2;
+  const clamp = (v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+  const lerp = (a,b,x)=>a+(b-a)*x;
+  const dist2 = (ax,ay,bx,by)=>{const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy;}
+  const angleTo = (ax,ay,bx,by)=>Math.atan2(by-ay,bx-ax);
+  const lineCircle = (ox,oy,dx,dy,cx,cy,r)=>{
+    // Ray origin o, dir d normalized, circle c,r. Return distance or null.
+    const fx = ox - cx, fy = oy - cy;
+    const b = 2*(dx*fx + dy*fy);
+    const c = fx*fx + fy*fy - r*r;
+    let disc = b*b - 4*c;
+    if (disc < 0) return null;
+    disc = Math.sqrt(disc);
+    const t1 = (-b - disc)/2;
+    const t2 = (-b + disc)/2;
+    const t = (t1 >= 0) ? t1 : (t2 >= 0 ? t2 : null);
+    return t;
+  };
+
+  // Config
+  const CFG = {
+    arena: { w: 2200, h: 1400, wallPad: 40 },
+    player: {
+      radius: 20, speed: 300, friction: 0.86,
+      hpMax: 120,
+      rollDistance: 180, rollSpeed: 900, rollCooldown: 2.0, // 3x radius, 3x speed, 2s cooldown
+      magSize: 30, reserve: 90, reload: 1.35, fireRate: 10, // bullets per second
+      dmg: 34, range: 900, spread: 6 * Math.PI/180, spreadADS: 3 * Math.PI/180,
+      recoilUp: 0.9, recoilDown: 4.2,
+    },
+    zombies: {
+      walker: { hp:100, spd:120, rad:22, scrap:4 },
+      runner: { hp:80, spd:200, rad:20, scrap:5 },
+      brute:  { hp:300, spd:90,  rad:30, scrap:12 },
+      knockback: 80,
+    },
+    waves: { spawnMaxRate:4, baseCount:8, curve:1.25, addPerWave:3, hpScale:0.06 },
+    drop: { chance:0.20, medkitWeight:0.35, ammoWeight:0.65, ammoQty:60 },
+    intermissionSec: 12,
+  };
+
+  // Obstacles
+  const obstacles = [
+    // x,y,w,h
+    {x: -400, y:-200, w:300, h:60},
+    {x:  200, y:-260, w:280, h:70},
+    {x: -150, y: 180, w:400, h:60},
+    {x:  520, y: 160, w:220, h:60},
+    {x: -680, y: -20, w:180, h:60},
+  ];
+
+  // Game state
+  let state='menu';
+  const game = {
+    wave:1, zToSpawn:0, zSpawned:0, zAlive:0, spawnRate:1.5, spawnAcc:0,
+    hp:0, hpMax:0, pos:{x:0,y:0}, vel:{x:0,y:0}, ang:0,
+    mag:0, reserve:0, reloading:false, reloadT:0,
+    fireCd:0, recoil:0, ads:false, kills:0, shots:0, hits:0,
+    medkits:0, scrap:0, startTime:0, endTime:0, bestWave: Number(localStorage.getItem('bestWave')||0),
+    shopTimer: null, // Added for shop timer management
+    rolling:false, rollT:0, rollDir:{x:0,y:0}, rollCd:0, // Roll mechanics
+  };
+
+  // Entities
+  const zombies = []; // {x,y,vx,vy,sp,rad,hp,type, staggerT}
+  const drops = [];   // {x,y,type:'ammo'|'medkit',ttl}
+  const tracers = []; // {x,y,x2,y2,ttl}
+
+  // Input
+  const keys = new Set();
+  const mouse = { x:0, y:0, worldX:0, worldY:0, down:false, rdown:false };
+  let padAim = {x:0,y:0};
+  let usingPad = false;
+
+  // Camera
+  const cam = { x:0, y:0, shake:0, zoom:1 };
+
+  // Event listeners
+  window.addEventListener('resize', onResize);
+  onResize();
+
+  window.addEventListener('keydown', (e)=>{
+    if (['F5','F12'].includes(e.code)) return;
+    keys.add(e.code);
+    // No menu/shop states in pure gameplay mode
+    if (state==='playing') {
+      if (e.code==='KeyQ') useMedkit();
+      if (e.code==='KeyR') tryReload();
+    }
+  });
+  window.addEventListener('keyup', (e)=>keys.delete(e.code));
+  canvas.addEventListener('mousemove', (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = (e.clientX - rect.left) * DPR;
+    mouse.y = (e.clientY - rect.top) * DPR;
+  });
+  canvas.addEventListener('mousedown',(e)=>{ if (e.button===0) mouse.down=true; if (e.button===2) mouse.rdown=true; });
+  canvas.addEventListener('contextmenu',(e)=>e.preventDefault());
+  canvas.addEventListener('mouseup',(e)=>{ if (e.button===0) mouse.down=false; if (e.button===2) mouse.rdown=false; });
+  // Removed problematic pointer lock that was hiding mouse cursor
+  // document.getElementById('wrap').addEventListener('pointerdown', ()=>canvas.requestPointerLock?.());
+
+  // Gamepad polling
+  window.addEventListener('gamepadconnected',()=>{ usingPad=true; });
+  window.addEventListener('gamepaddisconnected',()=>{ usingPad=false; });
+
+  // Auto-start game immediately for pure gameplay
+  function initGame() {
+    // Start game immediately - no menus, no popups!
+    startGame();
+  }
+  
+  // Initialize on page load
+  initGame();
+
+  // Main loop
+  requestAnimationFrame(loop);
+  function loop(t){
+    const dt = Math.min(0.033, (t - (tPrev||t)) / 1000); // clamp dt
+    tPrev = t;
+
+    // FPS calc
+    fpsTime += dt; frames++;
+    if (fpsTime >= 0.5) { fps = Math.round(frames / fpsTime); frames = 0; fpsTime = 0; if (state==='playing') hud.perf.textContent = fps + ' fps'; }
+
+    // Update input from gamepad
+    readGamepad();
+
+    if (state==='playing') updateGame(dt);
+    render();
+
+    requestAnimationFrame(loop);
+  }
+
+  function startGame(){
+    // Reset
+    zombies.length = 0; drops.length = 0; tracers.length = 0;
+    Object.assign(game, {
+      wave:1, zToSpawn:0, zSpawned:0, zAlive:0, spawnRate:1.5, spawnAcc:0,
+      hp:CFG.player.hpMax, hpMax:CFG.player.hpMax,
+      pos:{x:0,y:0}, vel:{x:0,y:0}, ang:0,
+      mag:CFG.player.magSize, reserve:CFG.player.reserve,
+      reloading:false, reloadT:0, fireCd:0, recoil:0, ads:false,
+      kills:0, shots:0, hits:0, medkits:0, scrap:0,
+      startTime: performance.now(), endTime: 0,
+      shopTimer: null, // Clear shop timer on game start
+      rolling:false, rollT:0, rollDir:{x:0,y:0}, rollCd:0, // Reset roll mechanics
+    });
+    cam.x = cam.y = 0; cam.shake = 0; cam.zoom = 1;
+
+    // Show HUD and start game immediately
+    hud.root.hidden = false;
+    state='playing';
+    setupWave();
+    updateHUD();
+  }
+
+  function gameOver(){
+    // Clear any existing shop timer
+    if (game.shopTimer) {
+      clearInterval(game.shopTimer);
+      game.shopTimer = null;
+    }
+    
+    state='gameOver';
+    game.endTime = performance.now();
+
+    const secs = ((game.endTime - game.startTime)/1000)|0;
+    const acc = game.shots ? Math.round(100*game.hits/game.shots) : 0;
+    if (game.wave-1 > game.bestWave) { game.bestWave = game.wave-1; localStorage.setItem('bestWave', String(game.bestWave)); }
+
+    // Show death stats in HUD briefly
+    const statsText = `💀 WAVE ${game.wave-1} | KILLS ${game.kills} | ${acc}% ACC | ${secs}s | BEST ${game.bestWave}`;
+    
+    // Create temporary stats display in HUD
+    const statsDiv = document.createElement('div');
+    statsDiv.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.8); padding:20px; border-radius:10px; color:#fff; font-size:18px; text-align:center; z-index:1000;';
+    statsDiv.innerHTML = `
+      <div style="margin-bottom:10px; font-size:24px; color:#ff6b6b;">💀 RUN OVER</div>
+      <div>${statsText}</div>
+      <div style="margin-top:10px; color:#888; font-size:14px;">Restarting in 3 seconds...</div>
+    `;
+    document.body.appendChild(statsDiv);
+    
+    // Auto-restart after 3 seconds
+    setTimeout(() => {
+      document.body.removeChild(statsDiv);
+      startGame();
+    }, 3000);
+  }
+
+  function setupWave(){
+    const w = game.wave;
+    const n = Math.ceil(CFG.waves.baseCount + CFG.waves.addPerWave*Math.pow(w, CFG.waves.curve));
+    const mixWalker = lerp(0.70, 0.50, clamp((w-1)/19,0,1));
+    const mixRunner = lerp(0.25, 0.35, clamp((w-1)/19,0,1));
+    const mixBrute  = 1 - mixWalker - mixRunner;
+    game.zToSpawn = n;
+    game.zSpawned = 0;
+    game.zAlive = 0;
+    game.spawnRate = Math.min(1.5 + 0.1*w, CFG.waves.spawnMaxRate);
+    game.spawnAcc = 0;
+
+    // Prebuild a spawn bag with types
+    game.spawnBag = [];
+    const addType = (t, count)=>{ for(let i=0;i<count;i++) game.spawnBag.push(t); };
+    addType('walker', Math.round(n*mixWalker));
+    addType('runner', Math.round(n*mixRunner));
+    addType('brute',  Math.max(0, n - (game.spawnBag.length)));
+    shuffle(game.spawnBag);
+
+    // heal a bit at wave start
+    game.hp = clamp(game.hp + 20, 0, game.hpMax);
+  }
+
+  // Shop functionality removed for pure gameplay
+
+  function updateGame(dt){
+    // Spawn logic
+    if (game.zSpawned < game.zToSpawn){
+      game.spawnAcc += dt*game.spawnRate;
+      while (game.spawnAcc >= 1 && game.zSpawned < game.zToSpawn){
+        spawnZombie(game.spawnBag[game.zSpawned] || 'walker');
+        game.zSpawned++;
+        game.zAlive++;
+        game.spawnAcc -= 1;
+      }
+    } else if (game.zAlive<=0){
+      // Wave completed - auto-start next wave immediately
+      game.wave++;
+      setupWave();
+      updateHUD();
+      return;
+    }
+
+    // Input movement
+    const want = {x:0,y:0};
+    if (keys.has('KeyW') || keys.has('ArrowUp')) want.y -= 1;
+    if (keys.has('KeyS') || keys.has('ArrowDown')) want.y += 1;
+    if (keys.has('KeyA') || keys.has('ArrowLeft')) want.x -= 1;
+    if (keys.has('KeyD') || keys.has('ArrowRight')) want.x += 1;
+
+    // Gamepad moves
+    if (usingPad) {
+      want.x += padMove.x;
+      want.y += padMove.y;
+    }
+
+    // Normalize
+    const len = Math.hypot(want.x, want.y) || 1;
+    want.x /= len; want.y /= len;
+
+    // Roll mechanics
+    const wantRoll = (keys.has('ShiftLeft')||keys.has('ShiftRight')) || (usingPad && padSprint);
+    game.rollCd = Math.max(0, game.rollCd - dt);
+    
+    // Trigger roll
+    if (wantRoll && !game.rolling && game.rollCd <= 0 && (want.x||want.y)) {
+      game.rolling = true;
+      game.rollT = CFG.player.rollDistance / CFG.player.rollSpeed;
+      game.rollDir.x = want.x;
+      game.rollDir.y = want.y;
+      game.rollCd = CFG.player.rollCooldown;
+    }
+
+    // Handle rolling movement
+    let spd = CFG.player.speed;
+    let moveX = want.x, moveY = want.y;
+    
+    if (game.rolling) {
+      game.rollT -= dt;
+      if (game.rollT <= 0) {
+        game.rolling = false;
+      } else {
+        // Override movement with roll direction and speed
+        spd = CFG.player.rollSpeed;
+        moveX = game.rollDir.x;
+        moveY = game.rollDir.y;
+      }
+    }
+
+    // Velocity & collision
+    game.vel.x = lerp(game.vel.x, moveX * spd, 0.8);
+    game.vel.y = lerp(game.vel.y, moveY * spd, 0.8);
+
+    // Integrate position with simple obstacle resolution
+    integrateWithObstacles(game.pos, game.vel, dt, CFG.player.radius);
+
+    // Aim angle
+    if (!usingPad || (Math.abs(padAim.x)+Math.abs(padAim.y) < 0.2)) {
+      // Mouse aim
+      screenToWorld(mouse.x, mouse.y, (wx,wy)=>{ mouse.worldX=wx; mouse.worldY=wy; });
+      game.ang = angleTo(game.pos.x, game.pos.y, mouse.worldX, mouse.worldY);
+    } else {
+      // Pad aim
+      game.ang = Math.atan2(padAim.y, padAim.x);
+    }
+
+    // ADS
+    game.ads = mouse.rdown || (usingPad && padADS);
+
+    // Firing
+    game.fireCd -= dt;
+    const wantFire = mouse.down || (usingPad && padFire);
+    if (wantFire) tryFire();
+
+    // Reloading
+    if (game.reloading){
+      game.reloadT -= dt;
+      if (game.reloadT <= 0){
+        const need = CFG.player.magSize - game.mag;
+        const take = Math.min(need, game.reserve);
+        game.mag += take;
+        game.reserve -= take;
+        game.reloading=false;
+      }
+    }
+
+    // Zombies behavior
+    for (let i=zombies.length-1; i>=0; i--){
+      const z = zombies[i];
+      // Seek player
+      const ang = angleTo(z.x, z.y, game.pos.x, game.pos.y);
+      const sp = z.sp;
+      if (z.staggerT>0){ z.staggerT -= dt; }
+      const k = z.staggerT>0 ? 0.35 : 1;
+      z.vx = Math.cos(ang)*sp*k;
+      z.vy = Math.sin(ang)*sp*k;
+
+      // Very simple obstacle sliding
+      integrateWithObstacles(z, {x:z.vx,y:z.vy}, dt, z.rad);
+
+      // Attack if close (but not during roll - player phases through)
+      if (!game.rolling) {
+        const d2 = dist2(z.x,z.y, game.pos.x, game.pos.y);
+        const rr = (z.rad + CFG.player.radius + 2);
+        if (d2 < rr*rr){
+          // Damage over time
+          const dps = (z.type==='brute') ? 35 : (z.type==='runner' ? 22 : 14);
+          applyDamage(dps*dt);
+          cam.shake = Math.max(cam.shake, 6);
+        }
+      }
+
+      if (z.hp <= 0){
+        // Drop
+        onZombieKilled(z);
+        zombies.splice(i,1);
+        game.zAlive--;
+      }
+    }
+
+    // Tracers fade
+    for (let i=tracers.length-1;i>=0;i--){ const tr=tracers[i]; tr.ttl-=dt; if (tr.ttl<=0) tracers.splice(i,1); }
+
+    // Drops ttl
+    for (let i=drops.length-1;i>=0;i--){
+      const d = drops[i];
+      d.ttl -= dt;
+      if (d.ttl<=0){ drops.splice(i,1); continue; }
+      // pickup
+      if (Math.hypot(d.x - game.pos.x, d.y - game.pos.y) < CFG.player.radius + 16){
+        if (d.type==='ammo') game.reserve += CFG.drop.ammoQty;
+        else game.medkits += 1;
+        drops.splice(i,1);
+      }
+    }
+
+    // Camera follow
+    cam.x = lerp(cam.x, game.pos.x, 0.18);
+    cam.y = lerp(cam.y, game.pos.y, 0.18);
+    cam.zoom = lerp(cam.zoom, game.ads ? 1.05 : 1.0, 0.1);
+    if (cam.shake>0) cam.shake = Math.max(0, cam.shake - 40*dt);
+
+    // Recoil recovery
+    game.recoil = Math.max(0, game.recoil - CFG.player.recoilDown*dt);
+
+    // Update HUD
+    updateHUD();
+
+    // Die
+    if (game.hp<=0) gameOver();
+  }
+
+  function tryFire(){
+    if (game.reloading) return;
+    if (game.fireCd > 0) return;
+    if (game.mag <= 0){ tryReload(); return; }
+
+    game.fireCd = 1 / CFG.player.fireRate;
+    game.mag--; game.shots++;
+    cam.shake = Math.max(cam.shake, 8);
+    game.recoil += CFG.player.recoilUp;
+
+    // Compute shot direction with spread + recoil
+    const base = game.ang;
+    const spread = (game.ads ? CFG.player.spreadADS : CFG.player.spread) + 0.6*game.recoil*(Math.PI/180);
+    const ang = base + (RNG()*2-1) * spread;
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+
+    // Hitscan
+    const maxT = CFG.player.range;
+    let bestT = null, bestZ = null;
+    for (const z of zombies){
+      const t = lineCircle(game.pos.x, game.pos.y, dx, dy, z.x, z.y, z.rad);
+      if (t!=null && t<=maxT && (bestT==null || t<bestT)){ bestT=t; bestZ=z; }
+    }
+    const endX = game.pos.x + dx * (bestT ?? maxT);
+    const endY = game.pos.y + dy * (bestT ?? maxT);
+
+    // Tracer
+    tracers.push({x:game.pos.x, y:game.pos.y, x2:endX, y2:endY, ttl:0.06});
+
+    // Damage
+    if (bestZ){
+      const headshot = (dist2(endX,endY,bestZ.x,bestZ.y) < (bestZ.rad*0.5)**2); // inner circle
+      const dmg = Math.round(CFG.player.dmg * (headshot ? 1.5 : 1));
+      bestZ.hp -= dmg;
+      game.hits++;
+      // knockback
+      const kb = CFG.zombies.knockback * (headshot?1.2:1.0);
+      bestZ.x += dx * 0.6 * (kb/60);
+      bestZ.y += dy * 0.6 * (kb/60);
+      bestZ.staggerT = 0.12;
+    }
+  }
+
+  function tryReload(){
+    if (game.reloading) return;
+    if (game.mag >= CFG.player.magSize) return;
+    if (game.reserve <= 0) return;
+    game.reloading = true;
+    game.reloadT = CFG.player.reload;
+  }
+
+  function useMedkit(){
+    if (game.medkits<=0) return;
+    if (game.hp >= game.hpMax) return;
+    game.medkits--;
+    game.hp = clamp(game.hp + 70, 0, game.hpMax);
+  }
+
+  function spawnZombie(type){
+    const tcfg = CFG.zombies[type] || CFG.zombies.walker;
+    // Spawn at perimeter away from player
+    const pad = CFG.arena.wallPad;
+    const side = Math.floor(RNG()*4);
+    let x=0,y=0;
+    if (side===0){ x = -CFG.arena.w/2 + pad; y = (RNG()-0.5)*CFG.arena.h; }
+    if (side===1){ x = CFG.arena.w/2 - pad;  y = (RNG()-0.5)*CFG.arena.h; }
+    if (side===2){ y = -CFG.arena.h/2 + pad; x = (RNG()-0.5)*CFG.arena.w; }
+    if (side===3){ y = CFG.arena.h/2 - pad;  x = (RNG()-0.5)*CFG.arena.w; }
+    // ensure not too close
+    const away = Math.hypot(x-game.pos.x,y-game.pos.y);
+    if (away < 300) { return spawnZombie(type); }
+
+    const scaleHP = 1 + CFG.waves.hpScale * game.wave;
+    zombies.push({
+      x,y, vx:0,vy:0, sp:tcfg.spd*(0.9+RNG()*0.2), rad:tcfg.rad,
+      hp: Math.round(tcfg.hp*scaleHP), type, staggerT:0
+    });
+  }
+
+  function onZombieKilled(z){
+    game.kills++;
+    game.scrap += (CFG.zombies[z.type]?.scrap||3);
+
+    // Drop
+    if (RNG() < CFG.drop.chance){
+      const r = RNG()*(CFG.drop.medkitWeight + CFG.drop.ammoWeight);
+      const type = (r < CFG.drop.medkitWeight) ? 'medkit' : 'ammo';
+      drops.push({ x:z.x, y:z.y, type, ttl:14 });
+    }
+  }
+
+  function applyDamage(dmg){
+    game.hp -= dmg;
+  }
+
+  // Physics
+  function integrateWithObstacles(p, v, dt, rad){
+    // Step X
+    let nx = p.x + v.x*dt, ny = p.y;
+    // Walls
+    const halfW = CFG.arena.w/2 - CFG.arena.wallPad;
+    const halfH = CFG.arena.h/2 - CFG.arena.wallPad;
+    nx = clamp(nx, -halfW+rad, halfW-rad);
+    // Obstacle collisions horizontal
+    for (const o of obstacles){
+      if (ny > o.y-o.h/2-rad && ny < o.y+o.h/2+rad){
+        const left = o.x - o.w/2 - rad, right = o.x + o.w/2 + rad;
+        if (nx > left && nx < right && p.x <= left) nx = left;
+        if (nx > left && nx < right && p.x >= right) nx = right;
+      }
+    }
+    p.x = nx;
+
+    // Step Y
+    nx = p.x; ny = p.y + v.y*dt;
+    ny = clamp(ny, -halfH+rad, halfH-rad);
+    for (const o of obstacles){
+      if (nx > o.x-o.w/2-rad && nx < o.x+o.w/2+rad){
+        const top = o.y - o.h/2 - rad, bot = o.y + o.h/2 + rad;
+        if (ny > top && ny < bot && p.y <= top) ny = top;
+        if (ny > top && ny < bot && p.y >= bot) ny = bot;
+      }
+    }
+    p.y = ny;
+  }
+
+  // Rendering
+  function render(){
+    // Resize backing store if needed
+    if (canvas.width !== Math.floor(W*DPR) || canvas.height !== Math.floor(H*DPR)){
+      canvas.width = Math.floor(W*DPR);
+      canvas.height = Math.floor(H*DPR);
+    }
+    ctx.save();
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Camera transform
+    const shakeX = (RNG()*2-1)*cam.shake;
+    const shakeY = (RNG()*2-1)*cam.shake;
+    const cx = canvas.width/2, cy = canvas.height/2;
+    ctx.translate(cx + shakeX, cy + shakeY);
+    ctx.scale(cam.zoom, cam.zoom);
+    ctx.translate(-cam.x, -cam.y);
+
+    // Arena floor grid
+    drawArena();
+
+    // Obstacles
+    ctx.fillStyle = '#1a2027';
+    ctx.strokeStyle = '#10161c';
+    for (const o of obstacles){
+      ctx.beginPath();
+      roundRectPath(o.x - o.w/2, o.y - o.h/2, o.w, o.h, 10);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Drops
+    for (const d of drops){
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.beginPath();
+      ctx.arc(0,0, 12, 0, TAU);
+      ctx.fillStyle = (d.type==='ammo') ? '#46a1ff' : '#49d17a';
+      ctx.fill();
+      ctx.fillStyle = '#0b0d10';
+      ctx.font = 'bold 12px system-ui';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(d.type==='ammo'?'A':'+',0,1);
+      ctx.restore();
+    }
+
+    // Tracers
+    ctx.lineWidth = 2;
+    for (const tr of tracers){
+      ctx.strokeStyle = `rgba(200,235,255,${clamp(tr.ttl/0.06,0,1)})`;
+      ctx.beginPath();
+      ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.x2, tr.y2); ctx.stroke();
+    }
+
+    // Zombies
+    for (const z of zombies){
+      ctx.save();
+      ctx.translate(z.x, z.y);
+      // body
+      ctx.beginPath();
+      ctx.arc(0,0, z.rad, 0, TAU);
+      ctx.fillStyle = (z.type==='brute') ? '#8d3a3a' : (z.type==='runner' ? '#7a8c3d' : '#5b6b7a');
+      ctx.fill();
+      // health ring
+      const hpPct = clamp(z.hp / (CFG.zombies[z.type]?CFG.zombies[z.type].hp*(1+CFG.waves.hpScale*game.wave):100), 0, 1);
+      ctx.beginPath();
+      ctx.strokeStyle = '#2ce089';
+      ctx.lineWidth = 3;
+      ctx.arc(0,0, z.rad+4, -Math.PI/2, -Math.PI/2 + hpPct*TAU);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Player
+    ctx.save();
+    ctx.translate(game.pos.x, game.pos.y);
+    
+    // Roll visual effects
+    if (game.rolling) {
+      // Add blur trail effect
+      const rollProgress = 1 - (game.rollT / (CFG.player.rollDistance / CFG.player.rollSpeed));
+      const trailLength = 40;
+      const trailSteps = 5;
+      
+      for (let i = 0; i < trailSteps; i++) {
+        const alpha = (1 - i / trailSteps) * 0.3;
+        const offset = i * (trailLength / trailSteps);
+        ctx.save();
+        ctx.translate(-game.rollDir.x * offset, -game.rollDir.y * offset);
+        ctx.rotate(game.ang);
+        ctx.globalAlpha = alpha;
+        // Rolling player is cyan/electric blue
+        ctx.fillStyle = `rgba(0, 255, 255, ${alpha})`;
+        roundRect(-18,-14,36,28,8);
+        ctx.fillStyle = `rgba(100, 255, 255, ${alpha})`;
+        roundRect(10,-5,26,10,5);
+        ctx.restore();
+      }
+      
+      // Main rolling player (brighter)
+      ctx.rotate(game.ang + rollProgress * TAU * 2); // Spin effect
+      ctx.fillStyle = '#00ffff'; // Bright cyan when rolling
+      ctx.shadowColor = '#00ffff';
+      ctx.shadowBlur = 15;
+      roundRect(-18,-14,36,28,8);
+      ctx.fillStyle = '#66ffff';
+      roundRect(10,-5,26,10,5);
+    } else {
+      // Normal player
+      ctx.rotate(game.ang);
+      ctx.fillStyle = '#9ad1ff';
+      roundRect(-18,-14,36,28,8);
+      ctx.fillStyle = '#cfe9ff';
+      roundRect(10,-5,26,10,5);
+    }
+    
+    // ADS reticle
+    if (game.ads && !game.rolling){
+      ctx.strokeStyle = 'rgba(180,220,255,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(60,0, 16, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.restore();
+
+    // Overlays visibility managed by state
+  }
+
+  function drawArena(){
+    // Walls frame
+    const halfW = CFG.arena.w/2, halfH = CFG.arena.h/2;
+    ctx.fillStyle = '#0f1419';
+    roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
+    ctx.fill();
+
+    // Grid
+    ctx.strokeStyle = '#111821';
+    ctx.lineWidth = 1;
+    const step = 80;
+    ctx.beginPath();
+    for (let x = -halfW; x<=halfW; x+=step){ ctx.moveTo(x, -halfH); ctx.lineTo(x, halfH); }
+    for (let y = -halfH; y<=halfH; y+=step){ ctx.moveTo(-halfW, y); ctx.lineTo(halfW, y); }
+    ctx.stroke();
+
+    // Border
+    ctx.strokeStyle = '#202a34';
+    ctx.lineWidth = 6;
+    roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
+    ctx.stroke();
+  }
+
+  function updateHUD(){
+    hud.wave.textContent = game.wave;
+    hud.zleft.textContent = (game.zToSpawn - game.zSpawned) + game.zAlive;
+    hud.hpBar.style.width = Math.round(100*game.hp/game.hpMax)+'%';
+    const ammoPct = game.mag/CFG.player.magSize;
+    hud.ammoBar.style.width = Math.round(100*ammoPct)+'%';
+    hud.ammoText.textContent = `${game.mag} / ${game.reserve}`;
+    hud.medkits.textContent = game.medkits;
+    hud.scrap.textContent = game.scrap;
+  }
+
+  // Helpers
+  function onResize(){
+    W = window.innerWidth|0; H = window.innerHeight|0;
+    DPR = Math.min(2, window.devicePixelRatio||1);
+  }
+  function screenToWorld(sx,sy,cb){
+    const cx = canvas.width/2, cy = canvas.height/2;
+    const x = (sx - cx) / cam.zoom + cam.x;
+    const y = (sy - cy) / cam.zoom + cam.y;
+    cb(x,y);
+  }
+  function roundRectPath(x,y,w,h,r){
+    const rr = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y, x+w,y+h, rr);
+    ctx.arcTo(x+w,y+h, x,y+h, rr);
+    ctx.arcTo(x,y+h, x,y, rr);
+    ctx.arcTo(x,y, x+w,y, rr);
+    ctx.closePath();
+  }
+  function roundRect(x,y,w,h,r){ ctx.beginPath(); roundRectPath(x,y,w,h,r); ctx.fill(); }
+
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(RNG()* (i+1))|0; const t=a[i]; a[i]=a[j]; a[j]=t; } }
+
+  // Gamepad state
+  let padMove={x:0,y:0}, padSprint=false, padFire=false, padADS=false;
+  function readGamepad(){
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const gp = pads && pads[0];
+    if (!gp) { usingPad=false; padMove.x=padMove.y=0; padAim.x=padAim.y=0; padFire=padADS=padSprint=false; return; }
+    usingPad = true;
+    // Axes: 0,1 = LS; 2,3 or 2,5 = RS depending browser
+    const ax = gp.axes || [];
+    const lsX = dead(ax[0]||0), lsY = dead(ax[1]||0);
+    const rsX = dead(ax[2]||0), rsY = dead(ax[3] ?? ax[5] ?? 0);
+    padMove.x = lsX; padMove.y = lsY;
+    padAim.x = rsX; padAim.y = rsY;
+    // Buttons: RT=7, LT=6, LB=4, X=2, A=0
+    padFire = (gp.buttons[7] && gp.buttons[7].pressed) || false;
+    padADS  = (gp.buttons[6] && gp.buttons[6].pressed) || false;
+    padSprint = (gp.buttons[1] && gp.buttons[1].pressed) || false; // B as sprint
+    // Reload
+    if (gp.buttons[2] && gp.buttons[2].pressed) tryReload();
+    // Medkit
+    if (gp.buttons[4] && gp.buttons[4].pressed) useMedkit();
+    // No menu/shop states in pure gameplay mode
+  }
+  function dead(v){ const d=0.2; return Math.abs(v)<d ? 0 : v; }
+
+  // Expose for debugging
+  window._game = game; window._z= zombies;
+
+})();
+</script>
+</body>
+</html>
