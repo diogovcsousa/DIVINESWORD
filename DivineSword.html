@@ -68,9 +68,7 @@
       <div class="bar"><i id="hpBar" style="width:100%"></i></div>
     </div>
 
-    <div class="badge">
-      <div class="row"><span class="muted">Upgrade</span>&nbsp;<b id="upgradeLevel">0</b></div>
-    </div>
+
 
     <div class="badge">
       <div class="row"><span class="muted">Fury</span></div>
@@ -101,7 +99,6 @@
     bossIndicator: document.getElementById('bossIndicator'),
     zleft: document.getElementById('hudZLeft'),
     hpBar: document.getElementById('hpBar'),
-    upgradeLevel: document.getElementById('upgradeLevel'),
     furyBar: document.getElementById('furyBar'), // Add fury bar
   };
   
@@ -651,8 +648,8 @@
     game.hits++;
     cam.shake = Math.max(cam.shake, 20);
     
-    // Circular AOE damage (300-unit radius)
-    const sweepRange = 300;
+    // Circular AOE damage (200-unit radius - reduced for balance)
+    const sweepRange = 200;
     let furyGained = 0;
     
     // Generate fury even without demons (for testing)
@@ -661,7 +658,7 @@
     for (const z of zombies){
       const dist = Math.hypot(z.x - game.pos.x, z.y - game.pos.y);
       if (dist <= sweepRange){
-        const baseDamage = Math.round((5 + (game.upgradeLevel * 3)) / 3); // Further reduced damage: ~5-15
+        const baseDamage = Math.round(5 + (game.upgradeLevel * 3)); // Tripled damage: ~5-45
         const totalDamage = baseDamage; // No Divine Favor bonus
         
         z.hp -= totalDamage;
