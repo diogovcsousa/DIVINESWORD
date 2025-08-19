@@ -228,8 +228,8 @@
       upgradeMultiplier: 1.0, // Damage multiplier from upgrades
     },
     demons: {
-      imp: { hp:100, spd:120, rad:22, favor:4, explodeOnContact: true, explosionDamage: 80, explosionRadius: 60 },
-      hellhound: { hp:80, spd:200, rad:20, favor:5, explodeOnContact: true, explosionDamage: 120, explosionRadius: 80 },
+      imp: { hp:100, spd:120, rad:22, favor:4, explodeOnContact: true, explosionDamage: 27, explosionRadius: 60 },
+      hellhound: { hp:80, spd:200, rad:20, favor:5, explodeOnContact: true, explosionDamage: 40, explosionRadius: 80 },
       fallen:  { hp:300, spd:90,  rad:30, favor:12, explodeOnContact: false, explosionDamage: 0, explosionRadius: 0 },
       knockback: 80,
     },
@@ -1350,57 +1350,22 @@
     // Update kill counter
     hud.zleft.textContent = game.totalKills;
     
-    // Health bar with dynamic color transition (Green -> Yellow -> Red)
+    // Health bar with dynamic color transition (Dark Green -> Bright Green)
     const healthPercent = Math.round(100*game.hp/game.hpMax);
     hud.hpBar.style.width = healthPercent + '%';
     
-    // Dynamic health color based on percentage
-    let healthColor;
-    if (healthPercent > 60) {
-      // Green to Yellow transition (60-100%)
-      const ratio = (healthPercent - 60) / 40;
-      healthColor = `linear-gradient(90deg, 
-        rgb(${Math.round(255 * (1 - ratio))}, 255, 0), 
-        rgb(255, 255, 0)
-      )`;
-    } else if (healthPercent > 20) {
-      // Yellow to Orange transition (20-60%)
-      const ratio = (healthPercent - 20) / 40;
-      healthColor = `linear-gradient(90deg, 
-        rgb(255, ${Math.round(255 * ratio)}, 0), 
-        rgb(255, 255, 0)
-      )`;
-    } else {
-      // Orange to Red transition (0-20%)
-      const ratio = healthPercent / 20;
-      healthColor = `linear-gradient(90deg, 
-        rgb(255, ${Math.round(255 * ratio)}, 0), 
-        rgb(255, 0, 0)
-      )`;
-    }
+    // Dynamic health color - MORE GREEN at full health
+    const greenIntensity = Math.round(100 + (healthPercent * 1.55)); // 100-255 range
+    const healthColor = `rgb(0, ${greenIntensity}, 0)`;
     hud.hpBar.style.background = healthColor;
     
-    // Fury bar with dynamic color transition (Yellow -> Orange -> Red)
+    // Fury bar with dynamic color transition (Dark Red -> Bright Red)
     const furyPercent = Math.round(100*game.fury/100);
     hud.furyBar.style.width = furyPercent + '%';
     
-    // Dynamic fury color based on percentage
-    let furyColor;
-    if (furyPercent > 50) {
-      // Yellow to Orange transition (50-100%)
-      const ratio = (furyPercent - 50) / 50;
-      furyColor = `linear-gradient(90deg, 
-        rgb(255, ${Math.round(255 * (1 - ratio))}, 0), 
-        rgb(255, 165, 0)
-      )`;
-    } else {
-      // Orange to Red transition (0-50%)
-      const ratio = furyPercent / 50;
-      furyColor = `linear-gradient(90deg, 
-        rgb(255, ${Math.round(165 * ratio)}, 0), 
-        rgb(255, 0, 0)
-      )`;
-    }
+    // Dynamic fury color - MORE RED at full fury
+    const redIntensity = Math.round(100 + (furyPercent * 1.55)); // 100-255 range
+    const furyColor = `rgb(${redIntensity}, 0, 0)`;
     hud.furyBar.style.background = furyColor;
   }
 
