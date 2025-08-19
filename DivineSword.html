@@ -803,7 +803,7 @@
             // Regular damage over time for non-explosive demons
             const dps = (z.type==='fallen') ? 35 : (z.type==='hellhound' ? 22 : 14);
             applyDamage(dps*dt);
-            cam.shake = Math.max(cam.shake, 6);
+            // cam.shake = Math.max(cam.shake, 6); // Camera shake removed
           }
         }
       }
@@ -877,7 +877,7 @@
     
     game.holyInfernoCd = 0.3; // 0.3 second cooldown
     game.hits++;
-    cam.shake = Math.max(cam.shake, 20);
+    // cam.shake = Math.max(cam.shake, 20); // Camera shake removed
     
     // Circular AOE damage (200-unit radius - reduced for balance)
     const sweepRange = 200;
@@ -937,7 +937,7 @@
     
     game.swordCd = CFG.player.swordCooldown;
     game.hits++;
-    cam.shake = Math.max(cam.shake, 15);
+    // cam.shake = Math.max(cam.shake, 15); // Camera shake removed
     
     // DARIUS Q DECIMATE: 360° circular swing with inner handle vs outer blade
     const slashRange = CFG.player.swordRange;
@@ -1080,7 +1080,7 @@
     if (game.burstCd > 0) return;
     
     game.burstCd = CFG.player.burstCooldown;
-    cam.shake = Math.max(cam.shake, 12);
+    // cam.shake = Math.max(cam.shake, 12); // Camera shake removed
     
     // AOE damage to all demons in range
     const burstRange = CFG.player.burstRange;
@@ -1125,7 +1125,7 @@
     CFG.player.upgradeMultiplier = 1.0 + (game.upgradeLevel * 0.2);
     
     // Visual feedback
-    cam.shake = Math.max(cam.shake, 8);
+    // cam.shake = Math.max(cam.shake, 8); // Camera shake removed
     
     // Upgrade particles
     for (let i = 0; i < 15; i++) {
@@ -1193,8 +1193,8 @@
         const damage = Math.round(explosionDamage * damageReduction * (1 - distToMichael / explosionRadius));
         applyDamage(damage);
         // Enhanced screen shake based on explosion size
-        const shakeIntensity = Math.max(15, explosionRadius * 0.3);
-        cam.shake = Math.max(cam.shake, shakeIntensity);
+        // const shakeIntensity = Math.max(15, explosionRadius * 0.3);
+        // cam.shake = Math.max(cam.shake, shakeIntensity);
       }
     }
     
