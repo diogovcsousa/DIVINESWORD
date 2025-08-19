@@ -29,6 +29,22 @@
     position:absolute; left:50%; bottom:20px; transform:translateX(-50%); display:flex; gap:24px; flex-wrap:nowrap; user-select:none; 
     font-family: 'Cinzel', 'UnifrakturMaguntia', 'Times New Roman', serif;
     align-items: center;
+    z-index: 1000;
+  }
+  
+  /* Kills Counter - Bottom Center */
+  .hud .badge {
+    background: transparent;
+    padding: 16px 24px;
+    border-radius: 0;
+    box-shadow: none;
+    border: 2px solid #444;
+    background: 
+      linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%),
+      radial-gradient(circle at center, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.9) 100%);
+    box-shadow: 
+      0 4px 8px rgba(0,0,0,0.8),
+      0 2px 4px rgba(0,0,0,0.6);
   }
   .badge { 
     background: transparent; 
@@ -183,48 +199,7 @@
     background: conic-gradient(from 0deg, transparent 0deg, #ff6600 var(--fill-angle), #cc3300 calc(var(--fill-angle) + 20deg), transparent calc(var(--fill-angle) + 20deg));
   }
   
-  /* Premium Meter Icons */
-  .meter-icon {
-    position: absolute;
-    top: -25px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-  }
-  
-  .potion-icon {
-    width: 40px;
-    height: 40px;
-    background: 
-      radial-gradient(circle at 30% 30%, #444 0%, #222 60%, #000 100%);
-    border: 3px solid #666;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-    box-shadow: 
-      0 4px 8px rgba(0,0,0,0.8),
-      0 2px 4px rgba(0,0,0,0.6),
-      inset 0 1px 2px rgba(255,255,255,0.2);
-    /* Premium icon effects */
-    position: relative;
-    overflow: hidden;
-  }
-  
-  .potion-icon::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
-    border-radius: 50%;
-  }
+
   
   /* Premium Meter Labels */
   .meter-label {
@@ -317,35 +292,28 @@
 
   <!-- HUD -->
   <div class="hud" id="hud" hidden>
-
     <div class="badge row">
       <span class="muted">Kills</span>&nbsp;<b class="zleft" id="hudZLeft">0</b>
     </div>
+  </div>
 
-    <!-- Circular Health Meter -->
-    <div class="circular-meter health-meter">
-      <div class="meter-frame">
-        <div class="meter-fill" id="hpBar"></div>
-        <div class="meter-glow"></div>
-      </div>
-      <div class="meter-icon">
-        <div class="potion-icon">🧪</div>
-      </div>
-      <div class="meter-label">Health</div>
+  <!-- Independent Circular Meters -->
+  <!-- Health Meter - Bottom Left -->
+  <div class="circular-meter health-meter">
+    <div class="meter-frame">
+      <div class="meter-fill" id="hpBar"></div>
+      <div class="meter-glow"></div>
     </div>
+    <div class="meter-label">Health</div>
+  </div>
 
-    <!-- Circular Fury Meter -->
-    <div class="circular-meter fury-meter">
-      <div class="meter-frame">
-        <div class="meter-fill" id="furyBar"></div>
-        <div class="meter-glow"></div>
-      </div>
-      <div class="meter-icon">
-        <div class="potion-icon">⚡</div>
-      </div>
-      <div class="meter-label">Fury</div>
+  <!-- Fury Meter - Bottom Right -->
+  <div class="circular-meter fury-meter">
+    <div class="meter-frame">
+      <div class="meter-fill" id="furyBar"></div>
+      <div class="meter-glow"></div>
     </div>
-
+    <div class="meter-label">Fury</div>
   </div>
 
 
