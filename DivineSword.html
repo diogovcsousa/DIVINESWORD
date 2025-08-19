@@ -24,10 +24,11 @@
       linear-gradient(135deg, #0a0505 0%, #1a0808 25%, #0f0404 50%, #1c0909 75%, #080303 100%),
       radial-gradient(ellipse at center, #1a0606 0%, #0d0404 40%, #050202 100%);
   }
-  /* HUD - Medieval Gothic Style */
+  /* HUD - Medieval Gothic Style - Bottom Center */
   .hud { 
-    position:absolute; left:12px; top:12px; display:flex; gap:16px; flex-wrap:wrap; user-select:none; 
+    position:absolute; left:50%; bottom:20px; transform:translateX(-50%); display:flex; gap:24px; flex-wrap:nowrap; user-select:none; 
     font-family: 'Cinzel', 'UnifrakturMaguntia', 'Times New Roman', serif;
+    align-items: center;
   }
   .badge { 
     background: transparent; 
@@ -38,73 +39,7 @@
   }
   .row { display:flex; gap:8px; align-items:center; }
   
-  /* Medieval 3D Meters */
-  .bar { 
-    width: 200px; 
-    height: 16px; 
-    background: 
-      linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 30%, #0a0a0a 70%, #000000 100%);
-    border-radius: 0;
-    overflow: hidden;
-    position: relative;
-    box-shadow: 
-      inset 0 2px 4px rgba(255,255,255,0.15),
-      inset 0 -2px 4px rgba(0,0,0,0.9),
-      0 6px 12px rgba(0,0,0,0.8),
-      0 3px 6px rgba(0,0,0,0.6),
-      0 1px 2px rgba(0,0,0,0.4);
-    border: 2px solid #444;
-    border-left: 3px solid #555;
-    border-top: 3px solid #555;
-  }
-  
-  /* Health Meter - Dynamic colors applied via JavaScript */
-  .bar > i { 
-    display: block; 
-    height: 100%; 
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    box-shadow: 
-      inset 0 1px 2px rgba(255,255,255,0.4),
-      inset 0 -1px 2px rgba(0,0,0,0.4);
-    animation: meterGlow 2s ease-in-out infinite alternate;
-  }
-  
-  /* Fury Meter - Dynamic colors applied via JavaScript */
-  .furyBar > i {
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    animation: furyPulse 1.5s ease-in-out infinite alternate;
-  }
-  
-  /* Meter Animations */
-  @keyframes meterGlow {
-    0% { box-shadow: 
-      inset 0 1px 2px rgba(255,255,255,0.4),
-      inset 0 -1px 2px rgba(0,0,0,0.4),
-      0 0 8px rgba(255,255,255,0.1);
-    }
-    100% { box-shadow: 
-      inset 0 1px 2px rgba(255,255,255,0.4),
-      inset 0 -1px 2px rgba(0,0,0,0.4),
-      0 0 16px rgba(255,255,255,0.2);
-    }
-  }
-  
-  @keyframes furyPulse {
-    0% { 
-      transform: scaleY(1);
-      box-shadow: 
-        inset 0 1px 2px rgba(255,255,255,0.4),
-        inset 0 -1px 2px rgba(0,0,0,0.4);
-    }
-    100% { 
-      transform: scaleY(1.05);
-      box-shadow: 
-        inset 0 1px 2px rgba(255,255,255,0.4),
-        inset 0 -1px 2px rgba(0,0,0,0.4),
-        0 0 12px rgba(255,0,0,0.3);
-    }
-  }
+
   
   /* Gothic Text Styling */
   .muted { 
@@ -118,6 +53,145 @@
     font-weight: 700;
     font-size: 18px;
     text-shadow: 0 0 12px rgba(255,255,255,0.5);
+  }
+  
+  /* Circular Diablo-Style Meters */
+  .circular-meter {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .meter-frame {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: 
+      radial-gradient(circle at 30% 30%, #444 0%, #222 40%, #111 70%, #000 100%);
+    box-shadow: 
+      inset 0 2px 4px rgba(255,255,255,0.1),
+      inset 0 -2px 4px rgba(0,0,0,0.9),
+      0 8px 16px rgba(0,0,0,0.8),
+      0 4px 8px rgba(0,0,0,0.6);
+    border: 3px solid #333;
+    overflow: hidden;
+  }
+  
+  .meter-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0deg, var(--fill-color) var(--fill-angle), transparent var(--fill-angle));
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(-90deg);
+  }
+  
+  .meter-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.1) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  
+  /* Health Meter Specific */
+  .health-meter .meter-frame {
+    border-color: #600;
+    box-shadow: 
+      inset 0 2px 4px rgba(255,255,255,0.1),
+      inset 0 -2px 4px rgba(0,0,0,0.9),
+      0 8px 16px rgba(0,0,0,0.8),
+      0 4px 8px rgba(0,0,0,0.6),
+      0 0 20px rgba(255,0,0,0.2);
+  }
+  
+  .health-meter .meter-fill {
+    --fill-color: #ff0000;
+    --fill-angle: 0deg;
+  }
+  
+  /* Fury Meter Specific */
+  .fury-meter .meter-frame {
+    border-color: #006;
+    box-shadow: 
+      inset 0 2px 4px rgba(255,255,255,0.1),
+      inset 0 -2px 4px rgba(0,0,0,0.9),
+      0 8px 16px rgba(0,0,0,0.8),
+      0 4px 8px rgba(0,0,0,0.6),
+      0 0 20px rgba(0,0,255,0.2);
+  }
+  
+  .fury-meter .meter-fill {
+    --fill-color: #0066ff;
+    --fill-angle: 0deg;
+  }
+  
+  /* Meter Icons */
+  .meter-icon {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .potion-icon {
+    width: 32px;
+    height: 32px;
+    background: #222;
+    border: 2px solid #444;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.6);
+  }
+  
+  .potion-counter {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    text-shadow: 0 0 4px rgba(255,255,255,0.5);
+  }
+  
+  /* Meter Labels */
+  .meter-label {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    margin-top: 8px;
+  }
+  
+  /* Full Meter Glow Effects */
+  .circular-meter.full .meter-frame {
+    box-shadow: 
+      inset 0 2px 4px rgba(255,255,255,0.1),
+      inset 0 -2px 4px rgba(0,0,0,0.9),
+      0 8px 16px rgba(0,0,0,0.8),
+      0 4px 8px rgba(0,0,0,0.6),
+      0 0 30px var(--glow-color);
+  }
+  
+  .health-meter.full {
+    --glow-color: rgba(255,0,0,0.6);
+  }
+  
+  .fury-meter.full {
+    --glow-color: rgba(0,0,255,0.6);
   }
   /* Overlays */
   .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
@@ -147,18 +221,32 @@
     <div class="badge row">
       <span class="muted">Kills</span>&nbsp;<b class="zleft" id="hudZLeft">0</b>
     </div>
-    <div class="badge">
-      <div class="row"><span class="muted">Health</span></div>
-      <div class="bar"><i id="hpBar" style="width:100%"></i></div>
+
+    <!-- Circular Health Meter -->
+    <div class="circular-meter health-meter">
+      <div class="meter-frame">
+        <div class="meter-fill" id="hpBar"></div>
+        <div class="meter-glow"></div>
+      </div>
+      <div class="meter-icon">
+        <div class="potion-icon">🧪</div>
+        <div class="potion-counter">5/5</div>
+      </div>
+      <div class="meter-label">Health</div>
     </div>
 
-
-
-    <div class="badge">
-      <div class="row"><span class="muted">Fury</span></div>
-      <div class="bar"><i id="furyBar" style="width:0%"></i></div>
+    <!-- Circular Fury Meter -->
+    <div class="circular-meter fury-meter">
+      <div class="meter-frame">
+        <div class="meter-fill" id="furyBar"></div>
+        <div class="meter-glow"></div>
+      </div>
+      <div class="meter-icon">
+        <div class="potion-icon">⚡</div>
+        <div class="potion-counter">5/5</div>
+      </div>
+      <div class="meter-label">Fury</div>
     </div>
-
 
   </div>
 
@@ -1350,23 +1438,31 @@
     // Update kill counter
     hud.zleft.textContent = game.totalKills;
     
-    // Health bar with dynamic color transition (Dark Green -> Bright Green)
+    // Circular Health Meter
     const healthPercent = Math.round(100*game.hp/game.hpMax);
-    hud.hpBar.style.width = healthPercent + '%';
+    const healthAngle = (healthPercent / 100) * 360;
+    hud.hpBar.style.setProperty('--fill-angle', healthAngle + 'deg');
     
-    // Dynamic health color - MORE GREEN at full health
-    const greenIntensity = Math.round(100 + (healthPercent * 1.55)); // 100-255 range
-    const healthColor = `rgb(0, ${greenIntensity}, 0)`;
-    hud.hpBar.style.background = healthColor;
+    // Add/remove full class for glow effect
+    const healthMeter = document.querySelector('.health-meter');
+    if (healthPercent >= 95) {
+      healthMeter.classList.add('full');
+    } else {
+      healthMeter.classList.remove('full');
+    }
     
-    // Fury bar with dynamic color transition (Dark Red -> Bright Red)
+    // Circular Fury Meter
     const furyPercent = Math.round(100*game.fury/100);
-    hud.furyBar.style.width = furyPercent + '%';
+    const furyAngle = (furyPercent / 100) * 360;
+    hud.furyBar.style.setProperty('--fill-angle', furyAngle + 'deg');
     
-    // Dynamic fury color - MORE RED at full fury
-    const redIntensity = Math.round(100 + (furyPercent * 1.55)); // 100-255 range
-    const furyColor = `rgb(${redIntensity}, 0, 0)`;
-    hud.furyBar.style.background = furyColor;
+    // Add/remove full class for glow effect
+    const furyMeter = document.querySelector('.fury-meter');
+    if (furyPercent >= 95) {
+      furyMeter.classList.add('full');
+    } else {
+      furyMeter.classList.remove('full');
+    }
   }
 
   // Helpers
