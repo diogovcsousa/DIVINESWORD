@@ -35,20 +35,16 @@
   /* Kills Counter - Bottom Center */
   .hud .badge {
     background: transparent;
-    padding: 16px 24px;
+    padding: 0;
     border-radius: 0;
     box-shadow: none;
-    border: 2px solid #444;
-    background: 
-      linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 70%),
-      radial-gradient(circle at center, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.9) 100%);
-    box-shadow: 
-      0 4px 8px rgba(0,0,0,0.8),
-      0 2px 4px rgba(0,0,0,0.6);
+    border: none;
+    background: transparent;
+    box-shadow: none;
   }
   .badge { 
     background: transparent; 
-    padding: 12px 16px; 
+    padding: 0; 
     border-radius: 0; 
     box-shadow: none;
     position: relative;
@@ -61,14 +57,29 @@
   .muted { 
     color: #ffffff; 
     font-weight: 600;
-    text-shadow: 0 0 8px rgba(255,255,255,0.3);
+    text-shadow: 
+      0 0 12px rgba(255,255,255,0.4),
+      0 2px 4px rgba(0,0,0,0.8);
     letter-spacing: 1px;
+    /* Premium text effects */
+    background: linear-gradient(45deg, #fff, #ccc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
   .zleft { 
     color: #ffffff; 
     font-weight: 700;
-    font-size: 18px;
-    text-shadow: 0 0 12px rgba(255,255,255,0.5);
+    font-size: 20px;
+    text-shadow: 
+      0 0 16px rgba(255,255,255,0.6),
+      0 2px 6px rgba(0,0,0,0.9);
+    letter-spacing: 1px;
+    /* Premium text effects */
+    background: linear-gradient(45deg, #fff, #ccc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
   
   /* Premium 3D Circular Meters - Corner Positioned */
