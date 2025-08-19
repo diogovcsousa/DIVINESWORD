@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>Zombie Survival — Offline MVP</title>
+<title>Divine Sword — Michael vs Demons</title>
 <style>
   :root {
     --bg:#0b0d10; --fg:#e8eef2; --muted:#9aa6b2; --accent:#36c; --danger:#e34; --ok:#3c8;
@@ -11,7 +11,16 @@
   }
   html,body { height:100%; margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,Segoe UI,Roboto,Arial; }
   #wrap { position:relative; width:100vw; height:100vh; overflow:hidden; }
-  canvas { display:block; width:100%; height:100%; background:radial-gradient(1200px 800px at 50% 50%, #12171c, #0b0d10 60%); }
+  canvas { 
+    display:block; width:100%; height:100%; 
+    background: 
+      radial-gradient(circle at 20% 30%, rgba(40,15,15,0.8) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(30,10,10,0.6) 0%, transparent 40%),
+      radial-gradient(circle at 40% 80%, rgba(25,8,8,0.7) 0%, transparent 45%),
+      radial-gradient(circle at 70% 70%, rgba(35,12,12,0.5) 0%, transparent 35%),
+      linear-gradient(135deg, #0a0505 0%, #1a0808 25%, #0f0404 50%, #1c0909 75%, #080303 100%),
+      radial-gradient(ellipse at center, #1a0606 0%, #0d0404 40%, #050202 100%);
+  }
   /* HUD */
   .hud { position:absolute; left:12px; top:12px; display:flex; gap:12px; flex-wrap:wrap; user-select:none; }
   .badge { background:var(--hud-bg); padding:8px 10px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,.2); }
@@ -20,8 +29,8 @@
   .bar > i { display:block; height:100%; background:linear-gradient(90deg,var(--ok),#6c9); }
   .ammo i { background:linear-gradient(90deg,#4af,#26a); }
   .scrap { color:#ffd26e; }
-  .wave { color:#9ad1ff; }
-  .zleft { color:#ff8aa0; }
+  .wave { color:#ffd700; }
+  .zleft { color:#ff4444; }
   .muted { color:var(--muted); }
   /* Overlays */
   .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
@@ -37,6 +46,8 @@
   .shoprow:last-child { border:0; }
   .dim { opacity:.7; }
   .foot { margin-top:10px; color:var(--muted); font-size:12px; }
+  
+
 </style>
 </head>
 <body>
@@ -47,27 +58,31 @@
   <div class="hud" id="hud" hidden>
     <div class="badge row">
       <span class="muted">Wave</span>&nbsp;<b class="wave" id="hudWave">1</b>
+      <span id="bossIndicator" style="margin-left:8px; color:#ff4444; display:none;">👑</span>
     </div>
     <div class="badge row">
-      <span class="muted">Zombies</span>&nbsp;<b class="zleft" id="hudZLeft">0</b>
+      <span class="muted">Demons</span>&nbsp;<b class="zleft" id="hudZLeft">0</b>
     </div>
     <div class="badge">
       <div class="row"><span class="muted">Health</span></div>
       <div class="bar"><i id="hpBar" style="width:100%"></i></div>
     </div>
-    <div class="badge ammo">
-      <div class="row"><span class="muted">Ammo</span></div>
-      <div class="bar"><i id="ammoBar" style="width:100%"></i></div>
-      <div class="muted" id="ammoText">30 / 90</div>
+
+    <div class="badge">
+      <div class="row"><span class="muted">Upgrade</span>&nbsp;<b id="upgradeLevel">0</b></div>
     </div>
     <div class="badge">
-      <div class="row"><span class="muted">Medkits</span>&nbsp;<b id="medkits">0</b></div>
+      <div class="row"><span class="muted">Divine Favor</span>&nbsp;<b class="scrap" id="scrap">0</b></div>
     </div>
-    <div class="badge">
-      <div class="row"><span class="muted">Scrap</span>&nbsp;<b class="scrap" id="scrap">0</b></div>
-    </div>
-    <div class="badge dim" id="perf">0 fps</div>
+
+    <div class="badge" style="cursor: pointer;" onclick="toggleFullscreen()" title="Toggle Fullscreen">🖥️</div>
+    <div class="badge" style="cursor: pointer; background: #00aa00;" onclick="resumeGame()" title="Resume Game">▶️</div>
+    <div class="badge" style="cursor: pointer; background: #ff4444;" onclick="forceResume()" title="Force Resume">🚫</div>
+    <div class="badge" id="gameState" style="background: #333;">State: Playing</div>
+    <div class="badge" style="cursor: pointer; background: #4444ff;" onclick="checkGameStatus()" title="Check Game Status">🔍</div>
   </div>
+
+
 
   <!-- Start Panel - REMOVED for pure gameplay -->
 
@@ -85,20 +100,26 @@
   const hud = {
     root: document.getElementById('hud'),
     wave: document.getElementById('hudWave'),
+    bossIndicator: document.getElementById('bossIndicator'),
     zleft: document.getElementById('hudZLeft'),
     hpBar: document.getElementById('hpBar'),
-    ammoBar: document.getElementById('ammoBar'),
-    ammoText: document.getElementById('ammoText'),
-    medkits: document.getElementById('medkits'),
+
+
+    upgradeLevel: document.getElementById('upgradeLevel'),
+
     scrap: document.getElementById('scrap'),
-    perf: document.getElementById('perf'),
+
+    gameState: document.getElementById('gameState'),
   };
+  
+
+  
   // All overlays removed for pure gameplay
   
   // No overlay buttons needed for pure gameplay
 
   // Globals
-  let W=0,H=0, DPR=1, tPrev=0, accTime=0, fps=0, frames=0, fpsTime=0;
+  let W=0,H=0, DPR=1, tPrev=0, accTime=0;
 
   const RNG = mulberry32(Date.now() % 2147483647);
   function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296}}
@@ -123,52 +144,58 @@
 
   // Config
   const CFG = {
-    arena: { w: 2200, h: 1400, wallPad: 40 },
+    arena: { w: 2200, h: 1400, wallPad: 0 },
     player: {
       radius: 20, speed: 300, friction: 0.86,
       hpMax: 120,
       rollDistance: 180, rollSpeed: 900, rollCooldown: 2.0, // 3x radius, 3x speed, 2s cooldown
-      magSize: 30, reserve: 90, reload: 1.35, fireRate: 10, // bullets per second
-      dmg: 34, range: 900, spread: 6 * Math.PI/180, spreadADS: 3 * Math.PI/180,
-      recoilUp: 0.9, recoilDown: 4.2,
+      swordDamage: 75, swordRange: 150, swordCooldown: 0.15, // Divine sword stats (buffed)
+
+      burstDamage: 120, burstRange: 200, burstCooldown: 5.0, // Heavenly burst stats
+      upgradeLevel: 0, // Current upgrade level
+      upgradeMultiplier: 1.0, // Damage multiplier from upgrades
     },
-    zombies: {
-      walker: { hp:100, spd:120, rad:22, scrap:4 },
-      runner: { hp:80, spd:200, rad:20, scrap:5 },
-      brute:  { hp:300, spd:90,  rad:30, scrap:12 },
+    demons: {
+      imp: { hp:100, spd:120, rad:22, favor:4, explodeOnContact: true, explosionDamage: 80, explosionRadius: 60 },
+      hellhound: { hp:80, spd:200, rad:20, favor:5, explodeOnContact: true, explosionDamage: 120, explosionRadius: 80 },
+      fallen:  { hp:300, spd:90,  rad:30, favor:12, explodeOnContact: false, explosionDamage: 0, explosionRadius: 0 },
       knockback: 80,
     },
     waves: { spawnMaxRate:4, baseCount:8, curve:1.25, addPerWave:3, hpScale:0.06 },
-    drop: { chance:0.20, medkitWeight:0.35, ammoWeight:0.65, ammoQty:60 },
+          drop: { chance:0.20 },
+
+    progression: { 
+      favorMultiplier: 1.0, // Increases with waves
+      upgradeCost: 50, // Cost to upgrade weapons
+      maxUpgrades: 5 // Maximum upgrade level
+    },
     intermissionSec: 12,
   };
 
-  // Obstacles
-  const obstacles = [
-    // x,y,w,h
-    {x: -400, y:-200, w:300, h:60},
-    {x:  200, y:-260, w:280, h:70},
-    {x: -150, y: 180, w:400, h:60},
-    {x:  520, y: 160, w:220, h:60},
-    {x: -680, y: -20, w:180, h:60},
-  ];
+  // No obstacles needed
 
   // Game state
   let state='menu';
+  let isPaused = false;
   const game = {
     wave:1, zToSpawn:0, zSpawned:0, zAlive:0, spawnRate:1.5, spawnAcc:0,
     hp:0, hpMax:0, pos:{x:0,y:0}, vel:{x:0,y:0}, ang:0,
-    mag:0, reserve:0, reloading:false, reloadT:0,
-    fireCd:0, recoil:0, ads:false, kills:0, shots:0, hits:0,
-    medkits:0, scrap:0, startTime:0, endTime:0, bestWave: Number(localStorage.getItem('bestWave')||0),
+          currentWeapon:'sword', // sword is primary weapon
+          swordCd:0, burstCd:0, // Weapon cooldowns
+    bossWave:false, // Boss wave flag
+    upgradeLevel:0, // Current upgrade level
+    kills:0, hits:0,
+ scrap:0, startTime:0, endTime:0, bestWave: Number(localStorage.getItem('bestWave')||0),
     shopTimer: null, // Added for shop timer management
     rolling:false, rollT:0, rollDir:{x:0,y:0}, rollCd:0, // Roll mechanics
   };
 
   // Entities
   const zombies = []; // {x,y,vx,vy,sp,rad,hp,type, staggerT}
-  const drops = [];   // {x,y,type:'ammo'|'medkit',ttl}
-  const tracers = []; // {x,y,x2,y2,ttl}
+  const drops = [];   // {x,y,type:'divineFavor',ttl}
+  const tracers = []; // {x,y,x2,y2,ttl,type}
+  const particles = []; // {x,y,vx,vy,life,lifeMax,color,size}
+  const bloodPools = []; // {x,y,size,life,lifeMax}
 
   // Input
   const keys = new Set();
@@ -182,14 +209,57 @@
   // Event listeners
   window.addEventListener('resize', onResize);
   onResize();
+  
+
+  
+  // Fullscreen change detection
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+      console.log('Entered fullscreen');
+    } else {
+      console.log('Exited fullscreen');
+    }
+  });
 
   window.addEventListener('keydown', (e)=>{
     if (['F5','F12'].includes(e.code)) return;
+    
+    // Fullscreen exit with ESC
+    if (e.code === 'Escape') {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+        return;
+      }
+    }
+    
+    // Pause system with Shift key
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      if (state === 'playing') {
+        isPaused = !isPaused;
+        console.log('Pause toggled:', isPaused);
+        return;
+      }
+    }
+    
+    // Restart when paused with Enter
+    if (isPaused && e.code === 'Enter') {
+      console.log('Restarting with Enter key');
+      isPaused = false;
+      startGame();
+      return;
+    }
+    
     keys.add(e.code);
+    // Resume game with R key when paused
+    if (e.code === 'KeyR' && isPaused && state === 'playing') {
+      resumeGame();
+      return;
+    }
+    
     // No menu/shop states in pure gameplay mode
-    if (state==='playing') {
-      if (e.code==='KeyQ') useMedkit();
-      if (e.code==='KeyR') tryReload();
+    if (state==='playing' && !isPaused) {
+      if (e.code==='KeyE') tryHeavenlyBurst();
+      if (e.code==='KeyT') upgradeWeapon();
     }
   });
   window.addEventListener('keyup', (e)=>keys.delete(e.code));
@@ -198,7 +268,18 @@
     mouse.x = (e.clientX - rect.left) * DPR;
     mouse.y = (e.clientY - rect.top) * DPR;
   });
-  canvas.addEventListener('mousedown',(e)=>{ if (e.button===0) mouse.down=true; if (e.button===2) mouse.rdown=true; });
+  canvas.addEventListener('mousedown',(e)=>{ 
+    if (e.button===0) mouse.down=true; 
+    if (e.button===2) {
+      mouse.rdown=true;
+      // Right-click restart when paused
+      if (isPaused && state === 'playing') {
+        console.log('Restarting with right-click');
+        isPaused = false;
+        startGame();
+      }
+    }
+  });
   canvas.addEventListener('contextmenu',(e)=>e.preventDefault());
   canvas.addEventListener('mouseup',(e)=>{ if (e.button===0) mouse.down=false; if (e.button===2) mouse.rdown=false; });
   // Removed problematic pointer lock that was hiding mouse cursor
@@ -224,13 +305,19 @@
     tPrev = t;
 
     // FPS calc
-    fpsTime += dt; frames++;
-    if (fpsTime >= 0.5) { fps = Math.round(frames / fpsTime); frames = 0; fpsTime = 0; if (state==='playing') hud.perf.textContent = fps + ' fps'; }
+
+
 
     // Update input from gamepad
-    readGamepad();
+    if (!isPaused) readGamepad();
 
-    if (state==='playing') updateGame(dt);
+    if (state==='playing' && !isPaused) updateGame(dt);
+    
+    // Debug: Log current state every 60 frames (1 second)
+    if (frames % 60 === 0) {
+      console.log('Game Loop - State:', state, 'Paused:', isPaused);
+    }
+    
     render();
 
     requestAnimationFrame(loop);
@@ -238,25 +325,36 @@
 
   function startGame(){
     // Reset
-    zombies.length = 0; drops.length = 0; tracers.length = 0;
+    zombies.length = 0; drops.length = 0; tracers.length = 0; particles.length = 0; bloodPools.length = 0;
     Object.assign(game, {
       wave:1, zToSpawn:0, zSpawned:0, zAlive:0, spawnRate:1.5, spawnAcc:0,
       hp:CFG.player.hpMax, hpMax:CFG.player.hpMax,
       pos:{x:0,y:0}, vel:{x:0,y:0}, ang:0,
-      mag:CFG.player.magSize, reserve:CFG.player.reserve,
-      reloading:false, reloadT:0, fireCd:0, recoil:0, ads:false,
-      kills:0, shots:0, hits:0, medkits:0, scrap:0,
+      currentWeapon:'sword',
+      swordCd:0, burstCd:0,
+
+      bossWave:false,
+      upgradeLevel:0,
+      kills:0, hits:0, scrap:0,
       startTime: performance.now(), endTime: 0,
       shopTimer: null, // Clear shop timer on game start
       rolling:false, rollT:0, rollDir:{x:0,y:0}, rollCd:0, // Reset roll mechanics
     });
     cam.x = cam.y = 0; cam.shake = 0; cam.zoom = 1;
 
+    // Reset pause state
+    console.log('startGame: Resetting pause state');
+    isPaused = false;
+    console.log('startGame: Pause state reset');
+
     // Show HUD and start game immediately
     hud.root.hidden = false;
     state='playing';
     setupWave();
     updateHUD();
+    
+    // Auto-fullscreen removed due to browser security restrictions
+    // User must manually click fullscreen button for immersive experience
   }
 
   function gameOver(){
@@ -274,13 +372,13 @@
     if (game.wave-1 > game.bestWave) { game.bestWave = game.wave-1; localStorage.setItem('bestWave', String(game.bestWave)); }
 
     // Show death stats in HUD briefly
-    const statsText = `💀 WAVE ${game.wave-1} | KILLS ${game.kills} | ${acc}% ACC | ${secs}s | BEST ${game.bestWave}`;
+    const statsText = `👼 WAVE ${game.wave-1} | DEMONS SLAIN ${game.kills} | ${acc}% ACC | ${secs}s | BEST ${game.bestWave}`;
     
     // Create temporary stats display in HUD
     const statsDiv = document.createElement('div');
     statsDiv.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:rgba(0,0,0,0.8); padding:20px; border-radius:10px; color:#fff; font-size:18px; text-align:center; z-index:1000;';
     statsDiv.innerHTML = `
-      <div style="margin-bottom:10px; font-size:24px; color:#ff6b6b;">💀 RUN OVER</div>
+      <div style="margin-bottom:10px; font-size:24px; color:#ffd700;">👼 DIVINE MISSION COMPLETE</div>
       <div>${statsText}</div>
       <div style="margin-top:10px; color:#888; font-size:14px;">Restarting in 3 seconds...</div>
     `;
@@ -296,22 +394,33 @@
   function setupWave(){
     const w = game.wave;
     const n = Math.ceil(CFG.waves.baseCount + CFG.waves.addPerWave*Math.pow(w, CFG.waves.curve));
-    const mixWalker = lerp(0.70, 0.50, clamp((w-1)/19,0,1));
-    const mixRunner = lerp(0.25, 0.35, clamp((w-1)/19,0,1));
-    const mixBrute  = 1 - mixWalker - mixRunner;
+    
+    // Progressive demon mix based on wave
+    const mixImp = lerp(0.70, 0.30, clamp((w-1)/30,0,1));
+    const mixHellhound = lerp(0.25, 0.45, clamp((w-1)/30,0,1));
+    const mixFallen = lerp(0.05, 0.25, clamp((w-1)/30,0,1));
+    
     game.zToSpawn = n;
     game.zSpawned = 0;
     game.zAlive = 0;
-    game.spawnRate = Math.min(1.5 + 0.1*w, CFG.waves.spawnMaxRate);
+    game.spawnRate = Math.min(1.5 + 0.15*w, CFG.waves.spawnMaxRate);
     game.spawnAcc = 0;
 
     // Prebuild a spawn bag with types
     game.spawnBag = [];
     const addType = (t, count)=>{ for(let i=0;i<count;i++) game.spawnBag.push(t); };
-    addType('walker', Math.round(n*mixWalker));
-    addType('runner', Math.round(n*mixRunner));
-    addType('brute',  Math.max(0, n - (game.spawnBag.length)));
+    addType('imp', Math.round(n*mixImp));
+    addType('hellhound', Math.round(n*mixHellhound));
+    addType('fallen', Math.round(n*mixFallen));
     shuffle(game.spawnBag);
+
+    // Boss wave every 10 waves
+    if (w % 10 === 0) {
+      game.bossWave = true;
+      game.zToSpawn += 5; // Extra demons for boss wave
+    } else {
+      game.bossWave = false;
+    }
 
     // heal a bit at wave start
     game.hp = clamp(game.hp + 20, 0, game.hpMax);
@@ -324,13 +433,33 @@
     if (game.zSpawned < game.zToSpawn){
       game.spawnAcc += dt*game.spawnRate;
       while (game.spawnAcc >= 1 && game.zSpawned < game.zToSpawn){
-        spawnZombie(game.spawnBag[game.zSpawned] || 'walker');
+        spawnDemon(game.spawnBag[game.zSpawned] || 'imp');
         game.zSpawned++;
         game.zAlive++;
         game.spawnAcc -= 1;
       }
     } else if (game.zAlive<=0){
-      // Wave completed - auto-start next wave immediately
+      // Wave completed - give bonuses
+      if (game.bossWave) {
+        // Boss wave bonus
+        game.scrap += 50;
+        
+        // Boss wave completion particles
+        for (let i = 0; i < 25; i++) {
+          const angle = (i / 25) * TAU;
+          const speed = 200 + RNG() * 150;
+          const vx = Math.cos(angle) * speed;
+          const vy = Math.sin(angle) * speed;
+          const colors = ['#ff0000', '#ff6600', '#ffaa00'];
+          const color = colors[Math.floor(RNG() * colors.length)];
+          createParticle(game.pos.x, game.pos.y, vx, vy, 1.2, color, 5);
+        }
+      } else {
+        // Normal wave bonus
+        game.scrap += 10;
+      }
+      
+      // Auto-start next wave immediately
       game.wave++;
       setupWave();
       updateHUD();
@@ -355,7 +484,7 @@
     want.x /= len; want.y /= len;
 
     // Roll mechanics
-    const wantRoll = (keys.has('ShiftLeft')||keys.has('ShiftRight')) || (usingPad && padSprint);
+    const wantRoll = keys.has('Space') || (usingPad && padSprint);
     game.rollCd = Math.max(0, game.rollCd - dt);
     
     // Trigger roll
@@ -387,8 +516,14 @@
     game.vel.x = lerp(game.vel.x, moveX * spd, 0.8);
     game.vel.y = lerp(game.vel.y, moveY * spd, 0.8);
 
-    // Integrate position with simple obstacle resolution
-    integrateWithObstacles(game.pos, game.vel, dt, CFG.player.radius);
+    // No collision - Michael passes through everything
+    game.pos.x += game.vel.x * dt;
+    game.pos.y += game.vel.y * dt;
+    
+    // Boundary system - allow full arena access
+    const boundary = 800; // Increased from 400 to 800 for full arena access
+    game.pos.x = clamp(game.pos.x, -boundary, boundary);
+    game.pos.y = clamp(game.pos.y, -boundary, boundary);
 
     // Aim angle
     if (!usingPad || (Math.abs(padAim.x)+Math.abs(padAim.y) < 0.2)) {
@@ -400,25 +535,22 @@
       game.ang = Math.atan2(padAim.y, padAim.x);
     }
 
-    // ADS
-    game.ads = mouse.rdown || (usingPad && padADS);
+    // ADS removed - not needed for divine weapons
+
+    // Weapon cooldowns
+    game.swordCd = Math.max(0, game.swordCd - dt);
+    game.burstCd = Math.max(0, game.burstCd - dt);
 
     // Firing
-    game.fireCd -= dt;
     const wantFire = mouse.down || (usingPad && padFire);
     if (wantFire) tryFire();
+    
+    // Right-click for Decimate
+    const wantDecimate = mouse.rdown || (usingPad && padDecimate);
+    if (wantDecimate) trySwordSlash();
 
-    // Reloading
-    if (game.reloading){
-      game.reloadT -= dt;
-      if (game.reloadT <= 0){
-        const need = CFG.player.magSize - game.mag;
-        const take = Math.min(need, game.reserve);
-        game.mag += take;
-        game.reserve -= take;
-        game.reloading=false;
-      }
-    }
+    // Weapon switching
+    if (keys.has('KeyR')) switchWeapon();
 
     // Zombies behavior
     for (let i=zombies.length-1; i>=0; i--){
@@ -431,24 +563,45 @@
       z.vx = Math.cos(ang)*sp*k;
       z.vy = Math.sin(ang)*sp*k;
 
-      // Very simple obstacle sliding
-      integrateWithObstacles(z, {x:z.vx,y:z.vy}, dt, z.rad);
+      // No collision - demons pass through everything
+      z.x += z.vx * dt;
+      z.y += z.vy * dt;
 
       // Attack if close (but not during roll - player phases through)
       if (!game.rolling) {
         const d2 = dist2(z.x,z.y, game.pos.x, game.pos.y);
         const rr = (z.rad + CFG.player.radius + 2);
         if (d2 < rr*rr){
-          // Damage over time
-          const dps = (z.type==='brute') ? 35 : (z.type==='runner' ? 22 : 14);
-          applyDamage(dps*dt);
-          cam.shake = Math.max(cam.shake, 6);
+          // Contact explosion for explosive demons
+          if (CFG.demons[z.type]?.explodeOnContact) {
+            explodeDemon(z, z.x, z.y);
+            // Remove the demon after explosion
+            zombies.splice(i, 1);
+            game.zAlive--;
+            continue; // Skip the rest of the loop for this demon
+          } else {
+            // Regular damage over time for non-explosive demons
+            const dps = (z.type==='fallen') ? 35 : (z.type==='hellhound' ? 22 : 14);
+            applyDamage(dps*dt);
+            cam.shake = Math.max(cam.shake, 6);
+          }
         }
       }
 
       if (z.hp <= 0){
+        // Death particles
+        for (let i = 0; i < 6; i++) {
+          const angle = (i / 6) * TAU;
+          const speed = 80 + RNG() * 60;
+          const vx = Math.cos(angle) * speed;
+          const vy = Math.sin(angle) * speed;
+          const colors = ['#ff4444', '#8b0000', '#ff0000'];
+          const color = colors[Math.floor(RNG() * colors.length)];
+          createParticle(z.x, z.y, vx, vy, 0.5, color, 3);
+        }
+        
         // Drop
-        onZombieKilled(z);
+        onDemonKilled(z);
         zombies.splice(i,1);
         game.zAlive--;
       }
@@ -456,6 +609,28 @@
 
     // Tracers fade
     for (let i=tracers.length-1;i>=0;i--){ const tr=tracers[i]; tr.ttl-=dt; if (tr.ttl<=0) tracers.splice(i,1); }
+    
+    // Update particles
+    updateParticles(dt);
+    
+    // Update blood pools
+    updateBloodPools(dt);
+    
+    // Ambient hell particles
+    if (RNG() < 0.1) {
+      const side = Math.floor(RNG() * 4);
+      let x, y;
+      if (side === 0) { x = -CFG.arena.w/2; y = (RNG()-0.5) * CFG.arena.h; }
+      if (side === 1) { x = CFG.arena.w/2; y = (RNG()-0.5) * CFG.arena.h; }
+      if (side === 2) { y = -CFG.arena.h/2; x = (RNG()-0.5) * CFG.arena.w; }
+      if (side === 3) { y = CFG.arena.h/2; x = (RNG()-0.5) * CFG.arena.w; }
+      
+      const vx = (game.pos.x - x) * 0.1;
+      const vy = (game.pos.y - y) * 0.1;
+      const colors = ['#ff4400', '#ff6600', '#ff8800'];
+      const color = colors[Math.floor(RNG() * colors.length)];
+      createParticle(x, y, vx, vy, 3.0, color, 2);
+    }
 
     // Drops ttl
     for (let i=drops.length-1;i>=0;i--){
@@ -464,20 +639,18 @@
       if (d.ttl<=0){ drops.splice(i,1); continue; }
       // pickup
       if (Math.hypot(d.x - game.pos.x, d.y - game.pos.y) < CFG.player.radius + 16){
-        if (d.type==='ammo') game.reserve += CFG.drop.ammoQty;
-        else game.medkits += 1;
+        if (d.type==='divineFavor') game.scrap += 25;
         drops.splice(i,1);
       }
     }
 
-    // Camera follow
-    cam.x = lerp(cam.x, game.pos.x, 0.18);
-    cam.y = lerp(cam.y, game.pos.y, 0.18);
-    cam.zoom = lerp(cam.zoom, game.ads ? 1.05 : 1.0, 0.1);
+    // Camera follow - LOCKED on Michael
+    cam.x = game.pos.x; // Direct lock, no lerp
+    cam.y = game.pos.y; // Direct lock, no lerp
+    cam.zoom = 1.0; // Fixed zoom, no ADS zoom
     if (cam.shake>0) cam.shake = Math.max(0, cam.shake - 40*dt);
 
-    // Recoil recovery
-    game.recoil = Math.max(0, game.recoil - CFG.player.recoilDown*dt);
+    // Recoil system removed - not needed for divine weapons
 
     // Update HUD
     updateHUD();
@@ -487,76 +660,316 @@
   }
 
   function tryFire(){
-    if (game.reloading) return;
-    if (game.fireCd > 0) return;
-    if (game.mag <= 0){ tryReload(); return; }
+    // NEW LEFT-CLICK ABILITY - placeholder for your design
+    // This will be your new primary attack
+    console.log('Left-click ability triggered - ready for new ability design');
+  }
 
-    game.fireCd = 1 / CFG.player.fireRate;
-    game.mag--; game.shots++;
-    cam.shake = Math.max(cam.shake, 8);
-    game.recoil += CFG.player.recoilUp;
-
-    // Compute shot direction with spread + recoil
-    const base = game.ang;
-    const spread = (game.ads ? CFG.player.spreadADS : CFG.player.spread) + 0.6*game.recoil*(Math.PI/180);
-    const ang = base + (RNG()*2-1) * spread;
-    const dx = Math.cos(ang), dy = Math.sin(ang);
-
-    // Hitscan
-    const maxT = CFG.player.range;
-    let bestT = null, bestZ = null;
+  function trySwordSlash(){
+    if (game.swordCd > 0) return;
+    
+    game.swordCd = CFG.player.swordCooldown;
+    game.hits++;
+    cam.shake = Math.max(cam.shake, 15);
+    
+    // DARIUS Q DECIMATE: 360° circular swing with inner handle vs outer blade
+    const slashRange = CFG.player.swordRange;
+    const innerRadius = slashRange * 0.4; // Inner handle area (40% of range)
+    const outerRadius = slashRange;        // Outer blade area (100% of range)
+    
+    // Check all demons in range
     for (const z of zombies){
-      const t = lineCircle(game.pos.x, game.pos.y, dx, dy, z.x, z.y, z.rad);
-      if (t!=null && t<=maxT && (bestT==null || t<bestT)){ bestT=t; bestZ=z; }
+      const dist = Math.hypot(z.x - game.pos.x, z.y - game.pos.y);
+      if (dist <= slashRange){
+        let dmg = 0;
+        let isBladeHit = false;
+        
+        if (dist <= innerRadius) {
+          // INNER HANDLE: Reduced damage (40% of normal)
+          dmg = Math.round(CFG.player.swordDamage * 0.4 * CFG.player.upgradeMultiplier);
+        } else {
+          // OUTER BLADE: Full damage + healing potential
+          dmg = Math.round(CFG.player.swordDamage * CFG.player.upgradeMultiplier);
+          isBladeHit = true;
+          
+          // HEALING: Heal based on missing health when blade hits
+          if (game.hp < game.hpMax) {
+            const missingHealth = game.hpMax - game.hp;
+            const healAmount = Math.round(missingHealth * 0.15); // 15% of missing health
+            game.hp = Math.min(game.hpMax, game.hp + healAmount);
+          }
+        }
+        
+        z.hp -= dmg;
+        game.hits++;
+        
+        // Enhanced knockback for blade hits
+        const kb = CFG.demons.knockback;
+        const ang = angleTo(game.pos.x, game.pos.y, z.x, z.y);
+        const knockbackMultiplier = isBladeHit ? 1.2 : 0.8; // Blade hits harder
+        z.x += Math.cos(ang) * knockbackMultiplier * (kb/60);
+        z.y += Math.sin(ang) * knockbackMultiplier * (kb/60);
+        z.staggerT = isBladeHit ? 0.25 : 0.15; // Blade hits stagger longer
+        
+        // Visual feedback for blade vs handle hits
+        if (isBladeHit) {
+          // Blade hit particles (golden)
+          for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * TAU;
+            const speed = 150 + RNG() * 100;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+            createParticle(z.x, z.y, vx, vy, 0.6, '#ffd700', 5);
+          }
+        } else {
+          // Handle hit particles (dull)
+          for (let i = 0; i < 4; i++) {
+            const angle = (i / 4) * TAU;
+            const speed = 80 + RNG() * 60;
+            const vx = Math.cos(angle) * speed;
+            const vy = Math.sin(angle) * speed;
+            createParticle(z.x, z.y, vx, vy, 0.4, '#666666', 3);
+          }
+        }
+      }
     }
-    const endX = game.pos.x + dx * (bestT ?? maxT);
-    const endY = game.pos.y + dy * (bestT ?? maxT);
+    
+    // VISUAL EFFECTS for Darius Q Decimate
+    
+    // 1. 360° Swing Tracers
+    const swingStages = 12; // 12 stages for smooth 360° motion
+    for (let i = 0; i < swingStages; i++) {
+      const angle = (i / swingStages) * TAU;
+      const nextAngle = ((i + 1) / swingStages) * TAU;
+      
+      // Inner handle tracer
+      const innerX1 = game.pos.x + Math.cos(angle) * innerRadius;
+      const innerY1 = game.pos.y + Math.sin(angle) * innerRadius;
+      const innerX2 = game.pos.x + Math.cos(nextAngle) * innerRadius;
+      const innerY2 = game.pos.y + Math.sin(nextAngle) * innerRadius;
+      
+      tracers.push({
+        x: innerX1, y: innerY1,
+        x2: innerX2, y2: innerY2,
+        ttl: 0.4, type: 'decimateHandle'
+      });
+      
+      // Outer blade tracer
+      const outerX1 = game.pos.x + Math.cos(angle) * outerRadius;
+      const outerY1 = game.pos.y + Math.sin(angle) * outerRadius;
+      const outerX2 = game.pos.x + Math.cos(nextAngle) * outerRadius;
+      const outerY2 = game.pos.y + Math.sin(nextAngle) * outerRadius;
+      
+      tracers.push({
+        x: outerX1, y: outerY1,
+        x2: outerX2, y2: outerY2,
+        ttl: 0.5, type: 'decimateBlade'
+      });
+    }
+    
+    // 2. Swing Progression Particles
+    for (let i = 0; i < swingStages; i++) {
+      const angle = (i / swingStages) * TAU;
+      const progress = i / swingStages;
+      
+      // Handle particles (dull, inner)
+      for (let j = 0; j < 3; j++) {
+        const particleAngle = angle + (j / 3) * (TAU / swingStages);
+        const radius = innerRadius * (0.8 + RNG() * 0.4);
+        const x = game.pos.x + Math.cos(particleAngle) * radius;
+        const y = game.pos.y + Math.sin(particleAngle) * radius;
+        const vx = Math.cos(particleAngle) * 60;
+        const vy = Math.sin(particleAngle) * 60;
+        createParticle(x, y, vx, vy, 0.5, '#666666', 4);
+      }
+      
+      // Blade particles (bright, outer)
+      for (let j = 0; j < 5; j++) {
+        const particleAngle = angle + (j / 5) * (TAU / swingStages);
+        const radius = outerRadius * (0.9 + RNG() * 0.2);
+        const x = game.pos.x + Math.cos(particleAngle) * radius;
+        const y = game.pos.y + Math.sin(particleAngle) * radius;
+        const vx = Math.cos(particleAngle) * 100;
+        const vy = Math.sin(particleAngle) * 100;
+        createParticle(x, y, vx, vy, 0.7, '#ffd700', 6);
+      }
+    }
+    
+    // 3. Completion Explosion
+    setTimeout(() => {
+      // Final 360° explosion
+      for (let i = 0; i < 24; i++) {
+        const angle = (i / 24) * TAU;
+        const speed = 120 + RNG() * 80;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
+        const colors = ['#ffd700', '#ffff00', '#ffaa00'];
+        const color = colors[Math.floor(RNG() * colors.length)];
+        createParticle(game.pos.x, game.pos.y, vx, vy, 1.0, color, 5);
+      }
+    }, 300);
+  }
 
-    // Tracer
-    tracers.push({x:game.pos.x, y:game.pos.y, x2:endX, y2:endY, ttl:0.06});
-
-    // Damage
-    if (bestZ){
-      const headshot = (dist2(endX,endY,bestZ.x,bestZ.y) < (bestZ.rad*0.5)**2); // inner circle
-      const dmg = Math.round(CFG.player.dmg * (headshot ? 1.5 : 1));
-      bestZ.hp -= dmg;
-      game.hits++;
-      // knockback
-      const kb = CFG.zombies.knockback * (headshot?1.2:1.0);
-      bestZ.x += dx * 0.6 * (kb/60);
-      bestZ.y += dy * 0.6 * (kb/60);
-      bestZ.staggerT = 0.12;
+  function tryHeavenlyBurst(){
+    if (game.burstCd > 0) return;
+    if (game.scrap < 50) return; // Fixed cost for heavenly burst
+    
+    game.burstCd = CFG.player.burstCooldown;
+    game.scrap -= 50;
+    cam.shake = Math.max(cam.shake, 12);
+    
+    // AOE damage to all demons in range
+    const burstRange = CFG.player.burstRange;
+    for (const z of zombies){
+      const dist = Math.hypot(z.x - game.pos.x, z.y - game.pos.y);
+      if (dist <= burstRange){
+        const dmg = Math.round(CFG.player.burstDamage * CFG.player.upgradeMultiplier);
+        z.hp -= dmg;
+        game.hits++;
+        // knockback
+        const kb = CFG.demons.knockback * 2;
+        const ang = angleTo(game.pos.x, game.pos.y, z.x, z.y);
+        z.x += Math.cos(ang) * 0.6 * (kb/60);
+        z.y += Math.sin(ang) * 0.6 * (kb/60);
+        z.staggerT = 0.2;
+      }
+    }
+    
+    // Add heavenly burst effect
+    tracers.push({x:game.pos.x, y:game.pos.y, x2:game.pos.x, y2:game.pos.y, ttl:0.5, type:'burst'});
+    
+    // Heavenly burst particles
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * TAU;
+      const speed = 150 + RNG() * 100;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      const colors = ['#ffffff', '#ffff00', '#ffaa00'];
+      const color = colors[Math.floor(RNG() * colors.length)];
+      createParticle(game.pos.x, game.pos.y, vx, vy, 0.8, color, 4);
     }
   }
 
-  function tryReload(){
-    if (game.reloading) return;
-    if (game.mag >= CFG.player.magSize) return;
-    if (game.reserve <= 0) return;
-    game.reloading = true;
-    game.reloadT = CFG.player.reload;
+
+
+  function upgradeWeapon(){
+    if (game.upgradeLevel >= CFG.progression.maxUpgrades) return;
+    if (game.scrap < CFG.progression.upgradeCost) return;
+    
+    game.upgradeLevel++;
+    game.scrap -= CFG.progression.upgradeCost;
+    
+    // Increase damage multiplier
+    CFG.player.upgradeMultiplier = 1.0 + (game.upgradeLevel * 0.2);
+    
+    // Visual feedback
+    cam.shake = Math.max(cam.shake, 8);
+    
+    // Upgrade particles
+    for (let i = 0; i < 15; i++) {
+      const angle = (i / 15) * TAU;
+      const speed = 120 + RNG() * 80;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      createParticle(game.pos.x, game.pos.y, vx, vy, 1.0, '#ffff00', 4);
+    }
   }
 
-  function useMedkit(){
-    if (game.medkits<=0) return;
-    if (game.hp >= game.hpMax) return;
-    game.medkits--;
-    game.hp = clamp(game.hp + 70, 0, game.hpMax);
+  function explodeDemon(z, x, y) {
+    const demonType = CFG.demons[z.type];
+    if (!demonType.explodeOnContact) return;
+    
+    // Multi-stage explosion
+    const explosionRadius = demonType.explosionRadius;
+    const explosionDamage = demonType.explosionDamage;
+    
+    // Stage 1: Flash
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * TAU;
+      const speed = 300 + RNG() * 200;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      createParticle(x, y, vx, vy, 0.3, '#ffffff', 6);
+    }
+    
+    // Stage 2: Shockwave
+    for (let i = 0; i < 30; i++) {
+      const angle = (i / 30) * TAU;
+      const speed = 150 + RNG() * 100;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      const colors = ['#ff4400', '#ff6600', '#ff8800'];
+      const color = colors[Math.floor(RNG() * colors.length)];
+      createParticle(x, y, vx, vy, 0.8, color, 4);
+    }
+    
+    // Stage 3: Blood explosion
+    for (let i = 0; i < 25; i++) {
+      const angle = (i / 25) * TAU;
+      const speed = 100 + RNG() * 80;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      const colors = ['#8b0000', '#ff0000', '#dc143c'];
+      const color = colors[Math.floor(RNG() * colors.length)];
+      createParticle(x, y, vx, vy, 1.5, color, 3);
+    }
+    
+    // Create blood pools on the ground
+    for (let i = 0; i < 3; i++) {
+      const offsetX = (RNG() - 0.5) * 40;
+      const offsetY = (RNG() - 0.5) * 40;
+      createBloodPool(x + offsetX, y + offsetY);
+    }
+    
+    // Damage to Michael if in range
+    const distToMichael = Math.hypot(x - game.pos.x, y - game.pos.y);
+    if (distToMichael <= explosionRadius) {
+      // Roll immunity - no damage during roll
+      if (!game.rolling) {
+        // Explosion damage scales with upgrade level (reduced damage)
+        const damageReduction = 1.0 - (game.upgradeLevel * 0.1);
+        const damage = Math.round(explosionDamage * damageReduction * (1 - distToMichael / explosionRadius));
+        applyDamage(damage);
+        // Enhanced screen shake based on explosion size
+        const shakeIntensity = Math.max(15, explosionRadius * 0.3);
+        cam.shake = Math.max(cam.shake, shakeIntensity);
+      }
+    }
+    
+    // Damage to other demons in range
+    for (const otherZ of zombies) {
+      if (otherZ === z) continue;
+      const dist = Math.hypot(x - otherZ.x, y - otherZ.y);
+      if (dist <= explosionRadius) {
+        const damage = Math.round(explosionDamage * 0.5 * (1 - dist / explosionRadius));
+        otherZ.hp -= damage;
+        if (otherZ.hp <= 0) {
+          onDemonKilled(otherZ);
+          const index = zombies.indexOf(otherZ);
+          if (index > -1) {
+            zombies.splice(index, 1);
+            game.zAlive--;
+          }
+        }
+      }
+    }
   }
 
-  function spawnZombie(type){
-    const tcfg = CFG.zombies[type] || CFG.zombies.walker;
-    // Spawn at perimeter away from player
-    const pad = CFG.arena.wallPad;
-    const side = Math.floor(RNG()*4);
-    let x=0,y=0;
-    if (side===0){ x = -CFG.arena.w/2 + pad; y = (RNG()-0.5)*CFG.arena.h; }
-    if (side===1){ x = CFG.arena.w/2 - pad;  y = (RNG()-0.5)*CFG.arena.h; }
-    if (side===2){ y = -CFG.arena.h/2 + pad; x = (RNG()-0.5)*CFG.arena.w; }
-    if (side===3){ y = CFG.arena.h/2 - pad;  x = (RNG()-0.5)*CFG.arena.w; }
-    // ensure not too close
+  // Reload function removed - not needed for divine weapons
+
+
+
+  function spawnDemon(type){
+    const tcfg = CFG.demons[type] || CFG.demons.imp;
+    // Spawn in circular pattern around Michael
+    const angle = RNG() * TAU;
+    const distance = 200 + RNG() * 300; // 200-500 units away (closer spawns)
+    const x = game.pos.x + Math.cos(angle) * distance;
+    const y = game.pos.y + Math.sin(angle) * distance;
+    
+    // ensure not too close but not too far
     const away = Math.hypot(x-game.pos.x,y-game.pos.y);
-    if (away < 300) { return spawnZombie(type); }
+    if (away < 200 || away > 600) { return spawnDemon(type); }
 
     const scaleHP = 1 + CFG.waves.hpScale * game.wave;
     zombies.push({
@@ -565,15 +978,24 @@
     });
   }
 
-  function onZombieKilled(z){
+  function onDemonKilled(z){
     game.kills++;
-    game.scrap += (CFG.zombies[z.type]?.scrap||3);
+    
+    // Base favor + wave bonus + boss wave bonus
+    let baseFavor = CFG.demons[z.type]?.favor || 3;
+    let waveBonus = Math.floor(game.wave * 0.5);
+    let bossBonus = game.bossWave ? 5 : 0;
+    let totalFavor = baseFavor + waveBonus + bossBonus;
+    
+    game.scrap += totalFavor;
 
-    // Drop
-    if (RNG() < CFG.drop.chance){
-      const r = RNG()*(CFG.drop.medkitWeight + CFG.drop.ammoWeight);
-      const type = (r < CFG.drop.medkitWeight) ? 'medkit' : 'ammo';
-      drops.push({ x:z.x, y:z.y, type, ttl:14 });
+
+    
+
+    
+    // Divine favor drop (very rare)
+    if (RNG() < 0.05){
+      drops.push({ x:z.x, y:z.y, type: 'divineFavor', ttl:20 });
     }
   }
 
@@ -581,36 +1003,7 @@
     game.hp -= dmg;
   }
 
-  // Physics
-  function integrateWithObstacles(p, v, dt, rad){
-    // Step X
-    let nx = p.x + v.x*dt, ny = p.y;
-    // Walls
-    const halfW = CFG.arena.w/2 - CFG.arena.wallPad;
-    const halfH = CFG.arena.h/2 - CFG.arena.wallPad;
-    nx = clamp(nx, -halfW+rad, halfW-rad);
-    // Obstacle collisions horizontal
-    for (const o of obstacles){
-      if (ny > o.y-o.h/2-rad && ny < o.y+o.h/2+rad){
-        const left = o.x - o.w/2 - rad, right = o.x + o.w/2 + rad;
-        if (nx > left && nx < right && p.x <= left) nx = left;
-        if (nx > left && nx < right && p.x >= right) nx = right;
-      }
-    }
-    p.x = nx;
-
-    // Step Y
-    nx = p.x; ny = p.y + v.y*dt;
-    ny = clamp(ny, -halfH+rad, halfH-rad);
-    for (const o of obstacles){
-      if (nx > o.x-o.w/2-rad && nx < o.x+o.w/2+rad){
-        const top = o.y - o.h/2 - rad, bot = o.y + o.h/2 + rad;
-        if (ny > top && ny < bot && p.y <= top) ny = top;
-        if (ny > top && ny < bot && p.y >= bot) ny = bot;
-      }
-    }
-    p.y = ny;
-  }
+  // No physics needed - demons pass through everything
 
   // Rendering
   function render(){
@@ -630,18 +1023,16 @@
     ctx.scale(cam.zoom, cam.zoom);
     ctx.translate(-cam.x, -cam.y);
 
+    // Dynamic hell background - darker and scarier
+    const time = performance.now() * 0.001;
+    const glowIntensity = 0.2 + 0.05 * Math.sin(time * 1.5);
+    ctx.fillStyle = `rgba(80,20,20,${glowIntensity * 0.15})`;
+    ctx.fillRect(-CFG.arena.w/2, -CFG.arena.h/2, CFG.arena.w, CFG.arena.h);
+    
     // Arena floor grid
     drawArena();
 
-    // Obstacles
-    ctx.fillStyle = '#1a2027';
-    ctx.strokeStyle = '#10161c';
-    for (const o of obstacles){
-      ctx.beginPath();
-      roundRectPath(o.x - o.w/2, o.y - o.h/2, o.w, o.h, 10);
-      ctx.fill();
-      ctx.stroke();
-    }
+    // No obstacles - demons spawn freely
 
     // Drops
     for (const d of drops){
@@ -649,42 +1040,109 @@
       ctx.translate(d.x, d.y);
       ctx.beginPath();
       ctx.arc(0,0, 12, 0, TAU);
-      ctx.fillStyle = (d.type==='ammo') ? '#46a1ff' : '#49d17a';
+      if (d.type==='divineFavor') {
+        ctx.fillStyle = '#ff00ff'; // Magenta for divine favor
+      }
       ctx.fill();
       ctx.fillStyle = '#0b0d10';
       ctx.font = 'bold 12px system-ui';
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(d.type==='ammo'?'A':'+',0,1);
+      if (d.type==='divineFavor') ctx.fillText('✨',0,1);
       ctx.restore();
     }
 
-    // Tracers
-    ctx.lineWidth = 2;
+    // Weapon effects
     for (const tr of tracers){
-      ctx.strokeStyle = `rgba(200,235,255,${clamp(tr.ttl/0.06,0,1)})`;
-      ctx.beginPath();
-      ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.x2, tr.y2); ctx.stroke();
+      if (tr.type === 'decimateHandle') {
+        // Decimate handle effect - inner circle (dull gray)
+        ctx.strokeStyle = `rgba(100,100,100,${clamp(tr.ttl/0.4,0,1)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(tr.x, tr.y);
+        ctx.lineTo(tr.x2, tr.y2);
+        ctx.stroke();
+      } else if (tr.type === 'decimateBlade') {
+        // Decimate blade effect - outer circle (golden with glow)
+        ctx.strokeStyle = `rgba(255,215,0,${clamp(tr.ttl/0.5,0,1)})`;
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(tr.x, tr.y);
+        ctx.lineTo(tr.x2, tr.y2);
+        ctx.stroke();
+        
+        // Blade glow effect
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 15;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else if (tr.type === 'burst') {
+        // Heavenly burst effect - expanding circle
+        ctx.save();
+        ctx.translate(tr.x, tr.y);
+        const radius = (1 - tr.ttl/0.5) * 100;
+        ctx.strokeStyle = `rgba(255,255,255,${clamp(tr.ttl/0.5,0,1)})`;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(0,0, radius, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        // Default tracer
+        ctx.strokeStyle = `rgba(200,235,255,${clamp(tr.ttl/0.06,0,1)})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.x2, tr.y2); ctx.stroke();
+      }
     }
 
-    // Zombies
+    // Demons
     for (const z of zombies){
       ctx.save();
       ctx.translate(z.x, z.y);
+      
+      // Demon glow effect
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 10;
+      
       // body
       ctx.beginPath();
       ctx.arc(0,0, z.rad, 0, TAU);
-      ctx.fillStyle = (z.type==='brute') ? '#8d3a3a' : (z.type==='runner' ? '#7a8c3d' : '#5b6b7a');
+      if (z.type === 'fallen') {
+        ctx.fillStyle = '#8d3a3a'; // Dark red
+      } else if (z.type === 'hellhound') {
+        ctx.fillStyle = '#7a3a3a'; // Darker red
+      } else {
+        ctx.fillStyle = '#5b3a3a'; // Darkest red
+      }
       ctx.fill();
-      // health ring
-      const hpPct = clamp(z.hp / (CFG.zombies[z.type]?CFG.zombies[z.type].hp*(1+CFG.waves.hpScale*game.wave):100), 0, 1);
+      
+      // Demon eyes
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ff0000';
       ctx.beginPath();
-      ctx.strokeStyle = '#2ce089';
+      ctx.arc(-z.rad*0.3, -z.rad*0.2, 3, 0, TAU);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(z.rad*0.3, -z.rad*0.2, 3, 0, TAU);
+      ctx.fill();
+      
+      // health ring
+      const hpPct = clamp(z.hp / (CFG.demons[z.type]?CFG.demons[z.type].hp*(1+CFG.waves.hpScale*game.wave):100), 0, 1);
+      ctx.beginPath();
+      ctx.strokeStyle = '#ff4444';
       ctx.lineWidth = 3;
       ctx.arc(0,0, z.rad+4, -Math.PI/2, -Math.PI/2 + hpPct*TAU);
       ctx.stroke();
+      
       ctx.restore();
     }
 
+    // Particles
+    renderParticles();
+    
+    // Blood pools
+    renderBloodPools();
+    
     // Player
     ctx.save();
     ctx.translate(game.pos.x, game.pos.y);
@@ -720,20 +1178,71 @@
       ctx.fillStyle = '#66ffff';
       roundRect(10,-5,26,10,5);
     } else {
-      // Normal player
+      // Normal player - Michael the Archangel
       ctx.rotate(game.ang);
-      ctx.fillStyle = '#9ad1ff';
+      ctx.fillStyle = '#ffd700'; // Golden
       roundRect(-18,-14,36,28,8);
-      ctx.fillStyle = '#cfe9ff';
+      ctx.fillStyle = '#ffed4e'; // Bright gold
       roundRect(10,-5,26,10,5);
     }
     
-    // ADS reticle
-    if (game.ads && !game.rolling){
-      ctx.strokeStyle = 'rgba(180,220,255,0.6)';
-      ctx.lineWidth = 1;
+    // Weapon indicator
+    if (!game.rolling){
+      ctx.strokeStyle = (game.currentWeapon === 'sword') ? 'rgba(255,215,0,0.8)' : 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(60,0, 16, 0, TAU); ctx.stroke();
+      
+      // Decimate range indicator
+      if (game.currentWeapon === 'sword') {
+        const range = CFG.player.swordRange;
+        const innerRadius = range * 0.4;
+        
+        ctx.strokeStyle = 'rgba(100,100,100,0.4)';
+        ctx.lineWidth = 2;
+        
+        // Inner handle circle
+        ctx.beginPath();
+        ctx.arc(0, 0, innerRadius, 0, TAU);
+        ctx.stroke();
+        
+        ctx.strokeStyle = 'rgba(255,215,0,0.6)';
+        ctx.lineWidth = 3;
+        
+        // Outer blade circle
+        ctx.beginPath();
+        ctx.arc(0, 0, range, 0, TAU);
+        ctx.stroke();
+        
+        // Directional arrows showing swing motion
+        ctx.strokeStyle = 'rgba(255,215,0,0.8)';
+        ctx.lineWidth = 2;
+        
+        // Clockwise swing arrows
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * TAU;
+          const arrowRadius = range * 0.7;
+          const x = Math.cos(angle) * arrowRadius;
+          const y = Math.sin(angle) * arrowRadius;
+          const nextAngle = ((i + 1) / 8) * TAU;
+          const nextX = Math.cos(nextAngle) * arrowRadius;
+          const nextY = Math.sin(nextAngle) * arrowRadius;
+          
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(nextX, nextY);
+          ctx.stroke();
+        }
+        
+        // Text labels
+        ctx.fillStyle = 'rgba(255,215,0,0.8)';
+        ctx.font = 'bold 12px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('DECIMATE', 0, -range - 20);
+        ctx.fillText('360° SWING', 0, -range - 5);
+        ctx.fillText('BLADE = FULL DMG + HEAL', 0, range + 20);
+        ctx.fillText('HANDLE = REDUCED DMG', 0, range + 35);
+      }
     }
     ctx.restore();
 
@@ -743,14 +1252,14 @@
   }
 
   function drawArena(){
-    // Walls frame
+    // Hell arena frame - much darker
     const halfW = CFG.arena.w/2, halfH = CFG.arena.h/2;
-    ctx.fillStyle = '#0f1419';
+    ctx.fillStyle = '#0a0404'; // Much darker red
     roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
     ctx.fill();
 
-    // Grid
-    ctx.strokeStyle = '#111821';
+    // Hell grid with fire effect - darker
+    ctx.strokeStyle = '#1a0808'; // Darker red grid
     ctx.lineWidth = 1;
     const step = 80;
     ctx.beginPath();
@@ -758,22 +1267,72 @@
     for (let y = -halfH; y<=halfH; y+=step){ ctx.moveTo(-halfW, y); ctx.lineTo(halfW, y); }
     ctx.stroke();
 
-    // Border
-    ctx.strokeStyle = '#202a34';
+    // Floating hell platforms (visual only) - darker
+    ctx.fillStyle = '#1a0808';
+    ctx.strokeStyle = '#2a1010';
+    ctx.lineWidth = 2;
+    
+    // Platform 1
+    roundRect(-300, -200, 200, 40, 15);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Platform 2
+    roundRect(200, 150, 180, 35, 12);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Platform 3
+    roundRect(-150, 250, 160, 30, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // Hell border with fire glow
+    ctx.strokeStyle = '#8b0000'; // Dark red border
     ctx.lineWidth = 6;
     roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
     ctx.stroke();
+    
+    // Fire glow effect
+    ctx.shadowColor = '#ff4400';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 2;
+    roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
   }
 
   function updateHUD(){
     hud.wave.textContent = game.wave;
+    
+    // Boss wave indicator
+    if (game.bossWave) {
+      hud.bossIndicator.style.display = 'inline';
+    } else {
+      hud.bossIndicator.style.display = 'none';
+    }
+    
     hud.zleft.textContent = (game.zToSpawn - game.zSpawned) + game.zAlive;
     hud.hpBar.style.width = Math.round(100*game.hp/game.hpMax)+'%';
-    const ammoPct = game.mag/CFG.player.magSize;
-    hud.ammoBar.style.width = Math.round(100*ammoPct)+'%';
-    hud.ammoText.textContent = `${game.mag} / ${game.reserve}`;
-    hud.medkits.textContent = game.medkits;
+    
+
+    
+
+    
+    // Upgrade level
+    hud.upgradeLevel.textContent = game.upgradeLevel;
+    
+
     hud.scrap.textContent = game.scrap;
+    
+    // Update game state display
+    if (hud.gameState) {
+      const stateText = isPaused ? 'PAUSED' : state.toUpperCase();
+      const stateColor = isPaused ? '#ff4444' : '#00aa00';
+      hud.gameState.textContent = `State: ${stateText}`;
+      hud.gameState.style.background = stateColor;
+    }
   }
 
   // Helpers
@@ -800,12 +1359,92 @@
 
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(RNG()* (i+1))|0; const t=a[i]; a[i]=a[j]; a[j]=t; } }
 
+  // Particle system
+  function createParticle(x, y, vx, vy, life, color, size) {
+    // Particle culling - limit total particles for performance
+    if (particles.length >= 200) return;
+    
+    particles.push({
+      x, y, vx, vy, life, lifeMax: life, color, size
+    });
+  }
+
+  function updateParticles(dt) {
+    try {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') {
+          particles.splice(i, 1);
+          continue;
+        }
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+    } catch (error) {
+      console.warn('Particle update error:', error);
+      particles.length = 0; // Reset on error
+    }
+  }
+
+  function renderParticles() {
+    for (const p of particles) {
+      const alpha = p.life / p.lifeMax;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, p.size * alpha, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function createBloodPool(x, y) {
+    // Blood pool limits for performance
+    if (bloodPools.length >= 50) return;
+    
+    bloodPools.push({
+      x, y, size: 15 + RNG() * 10, life: 30, lifeMax: 30
+    });
+  }
+
+  function updateBloodPools(dt) {
+    for (let i = bloodPools.length - 1; i >= 0; i--) {
+      const pool = bloodPools[i];
+      pool.life -= dt * 0.1; // Blood pools fade slowly
+      
+      if (pool.life <= 0) {
+        bloodPools.splice(i, 1);
+      }
+    }
+  }
+
+  function renderBloodPools() {
+    for (const pool of bloodPools) {
+      const alpha = pool.life / pool.lifeMax;
+      ctx.save();
+      ctx.translate(pool.x, pool.y);
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.fillStyle = '#8b0000';
+      ctx.beginPath();
+      ctx.arc(0, 0, pool.size, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
   // Gamepad state
-  let padMove={x:0,y:0}, padSprint=false, padFire=false, padADS=false;
+  let padMove={x:0,y:0}, padSprint=false, padFire=false, padDecimate=false;
   function readGamepad(){
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     const gp = pads && pads[0];
-    if (!gp) { usingPad=false; padMove.x=padMove.y=0; padAim.x=padAim.y=0; padFire=padADS=padSprint=false; return; }
+    if (!gp) { usingPad=false; padMove.x=padMove.y=0; padAim.x=padAim.y=0; padFire=padDecimate=padSprint=false; return; }
     usingPad = true;
     // Axes: 0,1 = LS; 2,3 or 2,5 = RS depending browser
     const ax = gp.axes || [];
@@ -815,15 +1454,75 @@
     padAim.x = rsX; padAim.y = rsY;
     // Buttons: RT=7, LT=6, LB=4, X=2, A=0
     padFire = (gp.buttons[7] && gp.buttons[7].pressed) || false;
-    padADS  = (gp.buttons[6] && gp.buttons[6].pressed) || false;
+    padDecimate = (gp.buttons[6] && gp.buttons[6].pressed) || false; // LT for Decimate
     padSprint = (gp.buttons[1] && gp.buttons[1].pressed) || false; // B as sprint
-    // Reload
-    if (gp.buttons[2] && gp.buttons[2].pressed) tryReload();
-    // Medkit
-    if (gp.buttons[4] && gp.buttons[4].pressed) useMedkit();
+
+
+    // Heavenly burst
+    if (gp.buttons[5] && gp.buttons[5].pressed) tryHeavenlyBurst();
+    // Upgrade weapon (RB button)
+    if (gp.buttons[3] && gp.buttons[3].pressed) upgradeWeapon();
     // No menu/shop states in pure gameplay mode
   }
   function dead(v){ const d=0.2; return Math.abs(v)<d ? 0 : v; }
+
+  // Fullscreen functionality
+  function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          console.log('Entered fullscreen successfully');
+        }).catch(err => {
+          console.log('Fullscreen failed:', err);
+          // Fallback for older browsers
+          if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen();
+          } else if (document.documentElement.msRequestFullscreen) {
+            document.documentElement.msRequestFullscreen();
+          }
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          console.log('Exited fullscreen successfully');
+        }).catch(err => {
+          console.log('Exit fullscreen failed:', err);
+        });
+      }
+    } catch (err) {
+      console.log('Fullscreen API not supported:', err);
+    }
+  }
+  
+  // Debug function to force resume game
+  function forceResume() {
+    console.log('Force resuming game');
+    isPaused = false;
+    console.log('Game force-resumed, pause state cleared');
+  }
+  
+  // Function to resume current game
+  function resumeGame() {
+    console.log('Resuming game from current state');
+    if (isPaused) {
+      isPaused = false;
+      console.log('Game resumed, pause state cleared');
+    } else {
+      console.log('Game is not paused');
+    }
+  }
+  
+  // Debug function to check game status
+  function checkGameStatus() {
+    console.log('=== GAME STATUS CHECK ===');
+    console.log('State:', state);
+    console.log('Paused:', isPaused);
+    console.log('Demons Alive:', game.zAlive);
+    console.log('Demons to Spawn:', game.zToSpawn);
+    console.log('Demons Spawned:', game.zSpawned);
+    console.log('Wave:', game.wave);
+    console.log('Player HP:', game.hp);
+    console.log('=======================');
+  }
 
   // Expose for debugging
   window._game = game; window._z= zombies;
