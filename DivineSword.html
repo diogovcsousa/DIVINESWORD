@@ -1390,10 +1390,14 @@
     ctx.scale(cam.zoom, cam.zoom);
     ctx.translate(-cam.x, -cam.y);
 
-    // Dynamic hell background - darker and scarier
-    const time = performance.now() * 0.001;
-    const glowIntensity = 0.2 + 0.05 * Math.sin(time * 1.5);
-    ctx.fillStyle = `rgba(80,20,20,${glowIntensity * 0.15})`;
+    // PITCH BLACK BACKGROUND - No more red glow
+    // const time = performance.now() * 0.001;
+    // const glowIntensity = 0.2 + 0.05 * Math.sin(time * 1.5);
+    // ctx.fillStyle = `rgba(80,20,20,${glowIntensity * 0.15})`;
+    // ctx.fillRect(-CFG.arena.w/2, -CFG.arena.h/2, CFG.arena.w, CFG.arena.h);
+    
+    // PURE PITCH BLACK BACKGROUND
+    ctx.fillStyle = '#000000'; // Pure black
     ctx.fillRect(-CFG.arena.w/2, -CFG.arena.h/2, CFG.arena.w, CFG.arena.h);
     
     // Arena floor grid
@@ -1568,13 +1572,13 @@
   }
 
   function drawArena(){
-    // Hell arena frame - much darker
+    // PITCH BLACK ARENA - No more red elements
     const halfW = CFG.arena.w/2, halfH = CFG.arena.h/2;
-    ctx.fillStyle = '#0a0404'; // Much darker red
-    roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
-    ctx.fill();
+    
+    // Pure black arena (already filled by main background)
+    // All arena elements removed for pitch black background
 
-    // Hell grid with fire effect - darker
+    // Grid removed for pitch black background
     ctx.strokeStyle = '#1a0808'; // Darker red grid
     ctx.lineWidth = 1;
     const step = 80;
@@ -1583,40 +1587,10 @@
     for (let y = -halfH; y<=halfH; y+=step){ ctx.moveTo(-halfW, y); ctx.lineTo(halfW, y); }
     ctx.stroke();
 
-    // Floating hell platforms (visual only) - darker
-    ctx.fillStyle = '#1a0808';
-    ctx.strokeStyle = '#2a1010';
-    ctx.lineWidth = 2;
-    
-    // Platform 1
-    roundRect(-300, -200, 200, 40, 15);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Platform 2
-    roundRect(200, 150, 180, 35, 12);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Platform 3
-    roundRect(-150, 250, 160, 30, 10);
-    ctx.fill();
-    ctx.stroke();
+    // Platforms removed for pitch black background
+    // Platform drawing code removed
 
-    // Hell border with fire glow
-    ctx.strokeStyle = '#8b0000'; // Dark red border
-    ctx.lineWidth = 6;
-    roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
-    ctx.stroke();
-    
-    // Fire glow effect
-    ctx.shadowColor = '#ff4400';
-    ctx.shadowBlur = 20;
-    ctx.strokeStyle = '#ff6600';
-    ctx.lineWidth = 2;
-    roundRect(-halfW, -halfH, CFG.arena.w, CFG.arena.h, 20);
-    ctx.stroke();
-    ctx.shadowBlur = 0;
+    // Border and fire glow effects removed for pitch black background
   }
 
   function updateHUD(){
