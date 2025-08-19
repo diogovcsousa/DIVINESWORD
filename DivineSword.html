@@ -310,7 +310,7 @@
     <div class="badge row" id="fpsCounter">
       <span class="muted">FPS</span>&nbsp;<b class="zleft" id="fpsValue">0</b>
     </div>
-  </div>
+    </div>
 
   <!-- Independent Circular Meters -->
   <!-- Health Meter - Bottom Left -->
@@ -320,7 +320,7 @@
       <div class="meter-glow"></div>
     </div>
     <div class="meter-label">Health</div>
-  </div>
+    </div>
 
   <!-- Fury Meter - Bottom Right -->
   <div class="circular-meter fury-meter">
@@ -682,7 +682,7 @@
     // Auto-restart after 3 seconds
     setTimeout(() => {
       if (document.body.contains(statsDiv)) {
-        document.body.removeChild(statsDiv);
+      document.body.removeChild(statsDiv);
       }
       startGame();
     }, 3000);
@@ -738,8 +738,8 @@
       // Choose demon type based on kill progression
       const demonType = chooseDemonType(game.totalKills);
       spawnDemon(demonType);
-      game.zAlive++;
-      game.spawnAcc -= 1;
+        game.zAlive++;
+        game.spawnAcc -= 1;
     }
 
     // Input movement
@@ -864,7 +864,7 @@
           } else {
             // Regular damage over time for non-explosive demons
             const dps = (z.type==='fallen') ? 35 : (z.type==='hellhound' ? 22 : 14);
-            applyDamage(dps*dt);
+          applyDamage(dps*dt);
             // cam.shake = Math.max(cam.shake, 6); // Camera shake removed
           }
         }
@@ -891,7 +891,7 @@
 
     // Tracers fade
     for (let i=tracers.length-1;i>=0;i--){ const tr=tracers[i]; tr.ttl-=dt; if (tr.ttl<=0) tracers.splice(i,1); }
-    
+
     // Update particles
     updateParticles(dt);
     
@@ -1156,8 +1156,8 @@
       if (dist <= burstRange){
         const dmg = Math.round(CFG.player.burstDamage * CFG.player.upgradeMultiplier);
         z.hp -= dmg;
-        game.hits++;
-        // knockback
+      game.hits++;
+      // knockback
         const kb = CFG.demons.knockback * 2;
         const ang = angleTo(game.pos.x, game.pos.y, z.x, z.y);
         z.x += Math.cos(ang) * 0.6 * (kb/60);
@@ -1399,9 +1399,9 @@
     // PURE PITCH BLACK BACKGROUND
     ctx.fillStyle = '#000000'; // Pure black
     ctx.fillRect(-CFG.arena.w/2, -CFG.arena.h/2, CFG.arena.w, CFG.arena.h);
-    
-    // Arena floor grid
-    drawArena();
+
+    // Arena floor grid - DISABLED for pure black background
+    // drawArena();
 
     // No obstacles - demons spawn freely
 
@@ -1413,10 +1413,10 @@
         // Decimate handle effect - inner circle (dull gray)
         ctx.strokeStyle = `rgba(100,100,100,${clamp(tr.ttl/0.4,0,1)})`;
         ctx.lineWidth = 3;
-        ctx.beginPath();
+      ctx.beginPath();
         ctx.moveTo(tr.x, tr.y);
         ctx.lineTo(tr.x2, tr.y2);
-        ctx.stroke();
+      ctx.stroke();
       } else if (tr.type === 'decimateBlade') {
         // Decimate blade effect - outer circle (golden with glow)
         ctx.strokeStyle = `rgba(255,215,0,${clamp(tr.ttl/0.5,0,1)})`;
@@ -1433,15 +1433,15 @@
         ctx.shadowBlur = 0;
       } else if (tr.type === 'burst') {
         // Heavenly burst effect - expanding circle
-        ctx.save();
+      ctx.save();
         ctx.translate(tr.x, tr.y);
         const radius = (1 - tr.ttl/0.5) * 100;
         ctx.strokeStyle = `rgba(255,255,255,${clamp(tr.ttl/0.5,0,1)})`;
         ctx.lineWidth = 6;
-        ctx.beginPath();
+      ctx.beginPath();
         ctx.arc(0,0, radius, 0, TAU);
         ctx.stroke();
-        ctx.restore();
+      ctx.restore();
       } else if (tr.type === 'holyEmber') {
         // Holy Ember Spin effect - expanding ring
         ctx.save();
@@ -1455,10 +1455,10 @@
         ctx.restore();
       } else {
         // Default tracer
-        ctx.strokeStyle = `rgba(200,235,255,${clamp(tr.ttl/0.06,0,1)})`;
+      ctx.strokeStyle = `rgba(200,235,255,${clamp(tr.ttl/0.06,0,1)})`;
         ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.x2, tr.y2); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(tr.x, tr.y); ctx.lineTo(tr.x2, tr.y2); ctx.stroke();
       }
     }
 
@@ -1513,7 +1513,7 @@
     
     // Blood pools
     renderBloodPools();
-    
+
     // Player
     ctx.save();
     ctx.translate(game.pos.x, game.pos.y);
@@ -1579,9 +1579,9 @@
     // All arena elements removed for pitch black background
 
     // Grid removed for pitch black background
-    ctx.strokeStyle = '#1a0808'; // Darker red grid
-    ctx.lineWidth = 1;
-    const step = 80;
+    // Grid stroke style removed
+    // Grid line width removed
+    // Grid step removed
     ctx.beginPath();
     for (let x = -halfW; x<=halfW; x+=step){ ctx.moveTo(x, -halfH); ctx.lineTo(x, halfH); }
     for (let y = -halfH; y<=halfH; y+=step){ ctx.moveTo(-halfW, y); ctx.lineTo(halfW, y); }
