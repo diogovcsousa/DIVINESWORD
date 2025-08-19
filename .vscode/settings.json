@@ -1,0 +1,8 @@
+{
+  "workbench.editor.revealIfOpen": false,
+  "explorer.autoReveal": false,
+  "workbench.editor.enablePreview": true,
+  "workbench.editor.limit.enabled": true,
+  "workbench.editor.limit.perEditorGroup": true,
+  "workbench.editor.limit.value": 1
+}
